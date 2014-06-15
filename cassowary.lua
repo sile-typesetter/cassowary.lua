@@ -428,23 +428,24 @@ cassowary.Expression = std.object {
 
 local _constraintStringify = function (self) return self.strength .. " {" .. self.weight .. "} (" .. self.expression .. ")" end
 cassowary.AbstractConstraint = std.object {
+  _type = "AbstractConstraint",
   isEditConstraint = false,
   isInequality = false,
   isStayConstraint = false,
   _init = function (self, strength, weight)
-    self.hashcode = c.gensym()
-    self.strength = strength or c.Strength.required
+    self.hashcode = cassowary.gensym()
+    self.strength = strength or cassowary.Strength.required
     self.weight = weight or 1
     return self
   end,
-  required = function (self) return self.strength == c.Strength.required end,
+  required = function (self) return self.strength == cassowary.Strength.required end,
   __tostring = _constraintStringify
 }
 
 local _editStayInit = function (self, cv, strength, weight)
   self = cassowary.AbstractConstraint(strength, weight)
   self.variable = cv
-  self.expression = c.Expression(cv, -1, cv.value)
+  self.expression = cassowary.Expression(cv, -1, cv.value)
   return self
 end
 
@@ -461,12 +462,98 @@ cassowary.StayConstraint = cassowary.AbstractConstraint {
   __tostring = function (self) return "stay: ".._constraintStringify(self) end
 }
 
-local lc = cassowary.Constraint = cassowary.AbstractConstraint {
+local lc = cassowary.AbstractConstraint {
   _init = function (self, cle, strength, weight)
-    self = cassowary.AbstractConstraint(strength, weight)
+    self = cassowary.AbstractConstraint._init(self, strength, weight)
     self.expression = cle
   end,
 }
 
+cassowary.Constraint = lc
+
+cassowary.Inequality = cassowary.Constraint {
+  cloneOrNewCle = function (self, cle)
+    if cle.clone then return cle:clone() else return cassowary.Expression(cle) end
+  end,
+  _init = function (self, a1, a2, a3, a4, a5)  
+    -- This disgusting mess copied from slightyoff's disgusting mess
+    if (type(a1) == "number" or a1:prototype() == "Expression") and type(a3) == "table" and a3:prototype() == "AbstractVariable" then
+      local cle, op, cv, strength, weight = a1, a2,a3,a4,a5
+      self = lc._init(self, self:cloneOrNewCle(cle), strength, weight)
+      if op == "<=" then
+        self.expression:multiplyMe(-1)
+        self.expression:addVariable(cv)
+      elseif op == ">=" then
+        self.expression:addVariable(cv, -1)
+      else
+        error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
+      end
+    elseif type(a1) == "table" and a1:prototype() == "AbstractVariable" and (type(a3) == "number" or a3:prototype() == "Expression") then
+      local cle, op, cv, strength, weight = a3,a2,a1,a4,a5
+      self = lc._init(self, self:cloneOrNewCle(cle), strength, weight)
+      if op == ">=" then -- a switch!
+        self.expression:multiplyMe(-1)
+        self.expression:addVariable(cv)
+      elseif op == "<=" then
+        self.expression:addVariable(cv, -1)
+      else
+        error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
+      end
+    elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "number" then
+      -- I feel like I'm writing Java
+      local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
+      self = lc._init(self, self:cloneOrNewCle(cle1), strength, weight)
+      if op == "<=" then
+        self.expression:multiplyMe(-1)
+        self.expression:addVariable(self:cloneOrNewCle(cle2))
+      elseif op == ">=" then
+        -- Just keep turning the crank and the code keeps coming out
+        self.expression:addVariable(self:cloneOrNewCle(cle2), -1)
+      else
+        error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
+      end
+    elseif type(a1) == "number" and type(a3) == "table" and a3:prototype() == "Expression" then
+      -- Polymorphism makes a lot of sense in strongly-typed languages
+      local cle1, op, cle2, strength, weight = a3,a2,a1,a4,a5
+      self = lc._init(self, self:cloneOrNewCle(cle1), strength, weight)
+      if op == ">=" then
+        self.expression:multiplyMe(-1)
+        self.expression:addVariable(self:cloneOrNewCle(cle2))
+      elseif op == "<=" then
+        self.expression:addVariable(self:cloneOrNewCle(cle2), -1)
+      else
+        error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
+      end
+    elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "table" and a3:prototype() == "Expression" then
+      -- but in weakly-typed languages it really doesn't gain you anything.
+      local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
+      self = lc._init(self, self:cloneOrNewCle(cle2), strength, weight)
+      if op == ">=" then
+        self.expression:multiplyMe(-1)
+        self.expression:addVariable(self:cloneOrNewCle(cle1))
+      elseif op == "<=" then
+        self.expression:addVariable(self:cloneOrNewCle(cle1), -1)
+      else
+        error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
+      end
+    elseif type(a1) == "table" and a1:prototype() == "Expression" then
+      self = lc._init(self, a1, a2, a3)
+    elseif a2 == ">=" then
+      self = lc._init(self, cassowary.Expression(a3), a4, a5)
+      self.expression:multiplyMe(-1)
+      self.expression:addVariable(a1)
+    elseif a2 == "<=" then
+      self = lc._init(self, cassowary.Expression(a3), a4, a5)
+      self.expression:addVariable(a1,-1)
+    else
+      error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
+    end
+    return self
+  end,
+  isInequality = true,
+  __tostring = function (self)
+    return lc.__tostring(self) .. " >= 0) id: ".. self.hashcode
+  end
+}
 
 return cassowary
