@@ -427,23 +427,39 @@ cassowary.Expression = std.object {
 }
 
 local _constraintStringify = function (self) return self.strength .. " {" .. self.weight .. "} (" .. self.expression .. ")" end
+
+local abcon_init = function (self, strength, weight)
+    self.hashcode = cassowary.gensym()
+    self.strength = strength or cassowary.Strength.required
+    self.weight = weight or 1
+    return self
+  end
+
 cassowary.AbstractConstraint = std.object {
   _type = "AbstractConstraint",
   isEditConstraint = false,
   isInequality = false,
   isStayConstraint = false,
-  _init = function (self, strength, weight)
-    self.hashcode = cassowary.gensym()
-    self.strength = strength or cassowary.Strength.required
-    self.weight = weight or 1
-    return self
+  _init = function(self, ...)
+    local specializer = {}
+    local newObject
+    local args = {...}
+    if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
+      specializer = table.remove(args,1)
+      newObject = std.object.mapfields(self,specializer)
+    else -- I am instantiating
+      newObject = std.object.mapfields(self,{})
+      newObject:initializer(unpack(args))
+    end
+    return newObject
   end,
+  initializer = abcon_init,
   required = function (self) return self.strength == cassowary.Strength.required end,
   __tostring = _constraintStringify
 }
 
 local _editStayInit = function (self, cv, strength, weight)
-  self = cassowary.AbstractConstraint(strength, weight)
+  self = abcon_init(self, strength,weight)
   self.variable = cv
   self.expression = cassowary.Expression(cv, -1, cv.value)
   return self
@@ -451,35 +467,38 @@ end
 
 
 cassowary.EditConstraint = cassowary.AbstractConstraint {
+  _type = "EditConstraint",
   isEditConstraint = true,
-  _init = _editStayInit,
+  initializer = _editStayInit,
   __tostring = function (self) return "edit: ".._constraintStringify(self) end
 }
 
 cassowary.StayConstraint = cassowary.AbstractConstraint {
+  _type = "StayConstraint",
   isStayConstraint = true,
-  _init = _editStayInit,
+  initializer = _editStayInit,
   __tostring = function (self) return "stay: ".._constraintStringify(self) end
 }
 
-local lc = cassowary.AbstractConstraint {
-  _init = function (self, cle, strength, weight)
-    self = cassowary.AbstractConstraint._init(self, strength, weight)
+cassowary.Constraint = cassowary.AbstractConstraint({
+  _type = "Constraint",
+  initializer = function (self, cle, strength, weight)
+    self = cassowary.AbstractConstraint.initializer(self, strength, weight)
     self.expression = cle
+    return self
   end,
-}
-
-cassowary.Constraint = lc
+})
 
 cassowary.Inequality = cassowary.Constraint {
+  _type = "Inequality",
   cloneOrNewCle = function (self, cle)
-    if cle.clone then return cle:clone() else return cassowary.Expression(cle) end
+    if type(cle)=="table" and cle.clone then return cle:clone() else return cassowary.Expression(cle) end
   end,
-  _init = function (self, a1, a2, a3, a4, a5)  
+  initializer = function (self, a1, a2, a3, a4, a5)  
     -- This disgusting mess copied from slightyoff's disgusting mess
     if (type(a1) == "number" or a1:prototype() == "Expression") and type(a3) == "table" and a3:prototype() == "AbstractVariable" then
       local cle, op, cv, strength, weight = a1, a2,a3,a4,a5
-      self = lc._init(self, self:cloneOrNewCle(cle), strength, weight)
+      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
       if op == "<=" then
         self.expression:multiplyMe(-1)
         self.expression:addVariable(cv)
@@ -488,9 +507,9 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
-    elseif type(a1) == "table" and a1:prototype() == "AbstractVariable" and (type(a3) == "number" or a3:prototype() == "Expression") then
+    elseif type(a1) == "table" and a1:prototype() == "AbstractVariable" and a3 and (type(a3) == "number" or a3:prototype() == "Expression") then
       local cle, op, cv, strength, weight = a3,a2,a1,a4,a5
-      self = lc._init(self, self:cloneOrNewCle(cle), strength, weight)
+      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
       if op == ">=" then -- a switch!
         self.expression:multiplyMe(-1)
         self.expression:addVariable(cv)
@@ -502,7 +521,7 @@ cassowary.Inequality = cassowary.Constraint {
     elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "number" then
       -- I feel like I'm writing Java
       local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
-      self = lc._init(self, self:cloneOrNewCle(cle1), strength, weight)
+      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
       if op == "<=" then
         self.expression:multiplyMe(-1)
         self.expression:addVariable(self:cloneOrNewCle(cle2))
@@ -515,7 +534,7 @@ cassowary.Inequality = cassowary.Constraint {
     elseif type(a1) == "number" and type(a3) == "table" and a3:prototype() == "Expression" then
       -- Polymorphism makes a lot of sense in strongly-typed languages
       local cle1, op, cle2, strength, weight = a3,a2,a1,a4,a5
-      self = lc._init(self, self:cloneOrNewCle(cle1), strength, weight)
+      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
       if op == ">=" then
         self.expression:multiplyMe(-1)
         self.expression:addVariable(self:cloneOrNewCle(cle2))
@@ -527,7 +546,7 @@ cassowary.Inequality = cassowary.Constraint {
     elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "table" and a3:prototype() == "Expression" then
       -- but in weakly-typed languages it really doesn't gain you anything.
       local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
-      self = lc._init(self, self:cloneOrNewCle(cle2), strength, weight)
+      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle2), strength, weight)
       if op == ">=" then
         self.expression:multiplyMe(-1)
         self.expression:addVariable(self:cloneOrNewCle(cle1))
@@ -537,13 +556,13 @@ cassowary.Inequality = cassowary.Constraint {
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
     elseif type(a1) == "table" and a1:prototype() == "Expression" then
-      self = lc._init(self, a1, a2, a3)
+      self = cassowary.Constraint.initializer(self, a1, a2, a3)
     elseif a2 == ">=" then
-      self = lc._init(self, cassowary.Expression(a3), a4, a5)
+      self = cassowary.Constraint.initializer(self, cassowary.Expression(a3), a4, a5)
       self.expression:multiplyMe(-1)
       self.expression:addVariable(a1)
     elseif a2 == "<=" then
-      self = lc._init(self, cassowary.Expression(a3), a4, a5)
+      self = cassowary.Constraint.initializer(self, cassowary.Expression(a3), a4, a5)
       self.expression:addVariable(a1,-1)
     else
       error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
@@ -552,8 +571,43 @@ cassowary.Inequality = cassowary.Constraint {
   end,
   isInequality = true,
   __tostring = function (self)
-    return lc.__tostring(self) .. " >= 0) id: ".. self.hashcode
+    return _constraintStringify(self) .. " >= 0) id: ".. self.hashcode
   end
+}
+
+cassowary.Equation = cassowary.Constraint {
+  _type = "Equation",
+  initializer = function (self, a1, a2, a3, a4)
+    local isExpression   = function(f) return (type(f)=="table" and f:prototype() == "Expression") end
+    local isVariable     = function(f) return (type(f)=="table" and f:prototype() == "AbstractVariable") end
+    local isNumber       = function(f) return (type(f)=="number") end
+    if (isExpression(a1) and not a2 or type(a2) == "table" and a2:prototype() == "Strength") then
+      self = cassowary.Constraint.initializer(self, a1, a2, a3)
+    elseif isVariable(a1) and isExpression(a2) then
+      local cv,cle,strength,weight = a1,a2,a3,a4
+      self = cassowary.Constraint.initializer(self, cle:clone(), strength, weight)
+      self.expression:addVariable(cv, -1)
+    elseif isVariable(a1) and isNumber(a2) then
+      local cv,val,strength,weight= a1,a2,a3,a4
+      self = cassowary.Constraint.initializer(self, cassowary.Expression(val), strength, weight)
+      self.expression:addVariable(cv, -1)      
+    elseif isExpression(a1) and isVariable(a2) then
+      local cle,cv,strength,weight= a1,a2,a3,a4
+      self = cassowary.Constraint.initializer(self, cle:clone(), strength, weight)
+      self.expression:addVariable(cv, -1)
+    elseif (isNumber(a1) or isExpression(a1) or isVariable(a1)) and
+           (isNumber(a2) or isExpression(a2) or isVariable(a2)) then
+      a1 = isExpression(a1) and a1:clone() or cassowary.Expression(a1)
+      a2 = isExpression(a2) and a2:clone() or cassowary.Expression(a2)
+      self = cassowary.Constraint.initializer(self, a1,a3,a4)
+      self.expression:addExpression(a2, -1)
+    else
+      error("Bad initializer to Equation")
+    end
+    assert(self.strength:prototype() == "Strength")
+    return self
+    end,
+  __tostring = function(self) return _constraintStringify(self) .. " = 0" end   
 }
 
 return cassowary
