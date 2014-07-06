@@ -32,8 +32,8 @@ assert = require("luassert")
 		--     local e0 = c.Equation(x, y);
 		--     solver.addStay(y);
 		--     solver.addConstraint(e0);
-		--     assert.isTrue(c.approx(x, 20));
-		--     assert.isTrue(c.approx(y, 20));
+		--     assert.is.truthy(c.approx(x, 20));
+		--     assert.is.truthy(c.approx(y, 20));
 
 		--     -- Weak.
 		--     local e1 = c.Equation(x, z, c.Strength.weak);
@@ -41,8 +41,8 @@ assert = require("luassert")
 		--     -- c.trace = true;
 		--     solver.addStay(x);
 		--     solver.addConstraint(e1);
-		--     assert.isTrue(c.approx(x, 20));
-		--     assert.isTrue(c.approx(z, 20));
+		--     assert.is.truthy(c.approx(x, 20));
+		--     assert.is.truthy(c.approx(z, 20));
 
 		--     -- Strong.
 		--     local e2 = c.Equation(z, w, c.Strength.strong);
@@ -101,26 +101,25 @@ assert = require("luassert")
 			assert.is.truthy(ieq.expression:equals(c.minus(5, v)));
 		end)
 
-		-- it('handles inequalities with reused variables', function ()
-		-- 	local e1 = c.Expression(10);
-		-- 	local e2 = c.Expression(c.Variable({ name = 'c', value = 10 }), 2, 4);
-		-- 	local ieq = c.Inequality(e1, c.GEQ, e2);
+		it('handles inequalities with reused variables', function ()
+			local e1 = c.Expression(10);
+			local e2 = c.Expression(c.Variable({ name = 'c', value = 10 }), 2, 4);
+			local ieq = c.Inequality(e1, ">=", e2);
+			assert.is.truthy(ieq.expression:equals(e1:minus(e2)));
 
-		-- 	assert.isTrue(ieq.expression.equals(e1.minus(e2)));
-
-		-- 	ieq = c.Inequality(e1, c.LEQ, e2);
-		-- 	assert.isTrue(ieq.expression.equals(e2.minus(e1)));
-		-- end)
+			ieq2 = c.Inequality(e1, "<=", e2);
+			assert.is.truthy(ieq2.expression:equals(e2:minus(e1)));
+		end)
 
 		-- it('handles constructors with variable/operator/expression args', function ()
 		-- 	local v = c.Variable({ name = 'v', value = 10 });
 		-- 	local e = c.Expression(c.Variable({ name = 'x', value = 5 }), 2, 4);
 		-- 	local ieq = c.Inequality(v, c.GEQ, e);
 
-		-- 	assert.isTrue(ieq.expression.equals(c.minus(v, e)));
+		-- 	assert.is.truthy(ieq.expression.equals(c.minus(v, e)));
 
 		-- 	ieq = c.Inequality(v, c.LEQ, e);
-		-- 	assert.isTrue(ieq.expression.equals(e.minus(v)));
+		-- 	assert.is.truthy(ieq.expression.equals(e.minus(v)));
 		-- end)
 
 		-- it('handles constructors with expression/operator/variable args', function ()
@@ -128,10 +127,10 @@ assert = require("luassert")
 		-- 	local e = c.Expression(c.Variable({ name = 'x', value = 5 }), 2, 4);
 		-- 	local ieq = c.Inequality(e, c.GEQ, v);
 
-		-- 	assert.isTrue(ieq.expression.equals(e.minus(v)));
+		-- 	assert.is.truthy(ieq.expression.equals(e.minus(v)));
 
 		-- 	ieq = c.Inequality(e, c.LEQ, v);
-		-- 	assert.isTrue(ieq.expression.equals(c.minus(v, e)));
+		-- 	assert.is.truthy(ieq.expression.equals(c.minus(v, e)));
 		-- end)
 
 	-- end)

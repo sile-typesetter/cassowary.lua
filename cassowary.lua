@@ -21,9 +21,9 @@ cassowary = {
   trace = false,
   verbose = false,
   traceAdded = false,
-  tracePrint = function(self, p)      if self.verbose then print(p) end end,
-  traceFnEnterPrint = function(self, p) print("* "..p) end,
-  traceFnExitPrint  = function(self, p) print("- "..p) end,
+  tracePrint = function(self, p) if self.trace and self.verbose then print(p) end end,
+  traceFnEnterPrint = function(self, p) if self.trace then  print("* "..p) end end,
+  traceFnExitPrint  = function(self, p) if self.trace then print("- "..p) end end,
   exprFromVarOrValue = function (v)
     if type(v)=="number" then
       return cassowary.Expression.fromConstant(v)
@@ -184,17 +184,17 @@ cassowary.Tableau = std.object {
     Set.insert(rowset, rowvar)
   end,
   addRow = function (self, aVar, expr)
-    if cassowary.trace then cassowary.traceFnEnterPrint("addRow: "..aVar..", "..expr) end
+    cassowary:traceFnEnterPrint("addRow: "..aVar..", "..expr)
     self.rows[aVar] = expr
     for clv,coeff in pairs(expr.terms) do 
       self:insertColVar(clv, aVar)
       if clv.isExternal then Set.insert(self._externalParametricVars, clv) end
     end
     if aVar.isExternal then Set.insert(self._externalRows, aVar) end
-    if cassowary.trace then cassowary.tracePrint(self.."") end
+    cassowary:tracePrint(self.."")
   end,
   removeColumn = function (self, aVar)
-    if cassowary.trace then cassowary.traceFnEnterPrint("removeColumn: "..aVar ) end
+    cassowary:traceFnEnterPrint("removeColumn: "..aVar )
     rows = self.columns[aVar]
     if rows then
       self.columns[aVar] = nil
@@ -203,7 +203,7 @@ cassowary.Tableau = std.object {
         expr.terms[aVar] = nil
       end
     else
-      if cassowary.trace then print("Could not find "..aVar.." in columns") end
+      print("Could not find "..aVar.." in columns")
     end
     if aVar.isExternal then
       Set.delete(self._externalRows, aVar)
@@ -211,13 +211,13 @@ cassowary.Tableau = std.object {
     end
   end,
   removeRow = function (self, aVar)
-    if cassowary.trace then cassowary.traceFnEnterPrint("removeRow: "..aVar ) end
+    cassowary:traceFnEnterPrint("removeRow: "..aVar )
     local expr = self.rows[aVar]
     assert(expr)
     for clv,coeff in pairs(expr.terms) do 
       local varset = self.columns[clv]
       if varset then
-        if cassowary.trace then print("Removing from varset "..aVar ) end
+        print("Removing from varset "..aVar )
         Set.delete(varset, aVar)
       end
     end    
@@ -226,12 +226,12 @@ cassowary.Tableau = std.object {
       Set.delete(self._externalRows, aVar)
     end
     self.rows[aVar] = nil
-    if cassowary.trace then cassowary.traceFnExitPrint("returning "..expr ) end
+    cassowary:traceFnExitPrint("returning "..expr )
     return expr
   end,
   substituteOut = function (self, oldVar, expr)
-    if cassowary.trace then 
-      cassowary.traceFnEnterPrint("substituteOut: "..aVar ) 
+    if cassowary.trace then
+      cassowary:traceFnEnterPrint("substituteOut: "..oldVar)
       print(self)
     end
 
@@ -249,7 +249,7 @@ cassowary.Tableau = std.object {
       Set.delete(self._externalParametricVars, oldVar)
     end
 
-    this.columns[oldVar] = nil
+    self.columns[oldVar] = nil
   end,
   columnsHasKey = function(self, subject)
     return self.columns[subject] ~= nil
@@ -259,7 +259,7 @@ cassowary.Tableau = std.object {
 cassowary.Expression = std.object { 
   _type = "Expression",
   _init = function(self, cvar, value, constant)
-    self.hashcode = c.gensym()
+    self.hashcode = cassowary.gensym()
     self.constant = type(constant) == "number" and constant or 0
     self.terms = {}
     if type(cvar) == "number" then self.constant = cvar
@@ -549,9 +549,9 @@ cassowary.Inequality = cassowary.Constraint {
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle2), strength, weight)
       if op == ">=" then
         self.expression:multiplyMe(-1)
-        self.expression:addVariable(self:cloneOrNewCle(cle1))
+        self.expression:addExpression(self:cloneOrNewCle(cle1))
       elseif op == "<=" then
-        self.expression:addVariable(self:cloneOrNewCle(cle1), -1)
+        self.expression:addExpression(self:cloneOrNewCle(cle1), -1)
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
@@ -608,6 +608,288 @@ cassowary.Equation = cassowary.Constraint {
     return self
     end,
   __tostring = function(self) return _constraintStringify(self) .. " = 0" end   
+}
+
+cassowary.SimplexSolver = cassowary.Tableau {
+  _type = "SimplexSolver",
+  initializer = function(self)
+    cassowary.Tableau.initializer(self)
+    self.stayMinusErrorVars = {}
+    self.stayPlusErrorVars = {}
+    self.errorVars = {}
+    self.markerVars = {}
+    self.objective = cassowary.ObjectiveVariable({name = "Z"})
+    self.editVarMap = {}
+    self.editVarList = {} -- XXX
+    self.slackCounter = 0
+    self.artificialCounter = 0
+    self.dummyCounter = 0
+    self.autoSolve = true
+    self.needsSolving = false
+    self.optimizeCount = 0
+    self.rows[self.objective] = cassowary.Expression.empty
+    self.editVariableStack = { 1 }
+    if cassowary.trace then
+      cassowary:tracePrint("objective expr == "..self.rows[self.objective])
+    end
+  end,
+  add = function (self, ...)
+    local args = {...}
+    for k=1, #args do self:addConstraint(args[k]) end
+    return self
+  end,
+  addEditConstraint = function (self, cn, eplus_eminus, prevEConstant)
+    local i = #{self.editVarMap}
+    local cvEplus, cvEminus = eplus_eminus[1], eplus_eminus[2]
+    local ei = cassowary.EditInfo { constraint = cn, 
+      editPlus = cvEplus, 
+      editMinus = cvEminus, 
+      prevEditConstant = prevEConstant, 
+      index = i }
+    self.editVarMap[cn.variable] = ei
+    self.editVarList[i+1] = {v = cn.variable, info = ei}
+  end,
+  addConstraint = function(self, cn)
+    cassowary:traceFnEnterPrint("addConstaint: "..cn)
+    local expr, eplus_eminus, prevEConstant = self:newExpression(cn)
+    if not self:tryAddingDirectly(expr) then self:addWithArtificialVariable(expr) end
+    self.needsSolving = true
+    if cn.isEditConstraint then self:addEditConstraint(cn, eplus_eminus, prevEConstant) end
+    if self.autoSolve then
+      self:optimize(self.objective)
+      self:setExternalVariables()
+    end
+    return self
+  end,
+  addConstraintNoException = function (self,cn)
+    cassowary:traceFnEnterPrint("addConstaintNoException: "..cn)
+    return pcall(self.addConstraint, self, cn)
+  end,
+  addEditVar = function (self, v, strength, weight)
+    cassowary:traceFnEnterPrint("addEditVar: " .. v .. " @ " .. strength .. " {" .. weight + "}");
+    return self:addConstraint(cassowary.EditConstraint(v, strength or cassowary.Strength.strong, weight));
+  end,
+  beginEdit = function(self)
+    assert(#(self.editVarMap) > 0)
+    self.infeasibleRows = Set {}
+    self:resetStayConstants();
+    self.editVariableStack[#(self.editVariableStack)+1] = #(self.editVarMap)
+    return self;
+  end,
+  endEdit = function ( self )
+    assert(#(self.editVarMap) > 0)
+    self:resolve()
+    table.remove(self.editVariableStack)
+    self:removeEditVarsTo(self.editVariableStack[#(self.editVariableStack)])
+    return self
+  end,
+  removeAllEditVars = function(self)
+    self:removeEditVarsTo(1)
+  end,
+  removeEditVarsTo = function(self, n)
+    for k=n,#(self.editVarList) do
+      if self.editVarList[k] then
+        local v = self.editVarMap[k].v
+        self:removeConstraint(v.constraint)
+      end
+      self.editVarList[k] = nil
+    end
+  end,
+  addPointStays = function(self, points)
+    cassowary:traceFnEnterPrint("addPointStays: "..points)
+    for i = 1,#points do
+      local p = points[i]
+      self:addStay(p.x, cassowary.Strength.weak, 2^i)
+      self:addStay(p.y, cassowary.Strength.weak, 2^i)
+    end
+    return self
+  end,
+  addStay = function (self, v, strength, weight)
+    local cn = cassowary.StayConstraint(v, strength or cassowary.Strength.weak, weight or 1)
+    self:addConstraint(cn)
+  end,
+  removeConstraint = function (self, cn)
+    cassowary:traceFnEnterPrint("removeConstraint: "..cn)
+    self.needsSolving = true
+    self:resetStayConstants()
+    local zrow = self.rows[self.objective]
+    local evars = self.errorVars[cn]
+    cassowary:tracePrint("evars: "..evars)
+    if evars then
+      for i =1,#evars do
+        local cv = evars[i]
+        local expr = self.rows[cv]
+        if not expr then
+          zrow:addVariable(cv, -cn.weight * cn.strength.symbolicWeight.value, self.objective, self)
+        else
+          zrow:addExpression(expr, -cn.weight * cn.strength.symbolicWeight.value, self.objective, self)
+        end
+        cassowary:tracePrint("now evars: "..evars)
+      end
+    end
+    local marker = self.markerVars[cn]
+    self.markerVars[cn] = nil
+    if not marker then error(cassowary.InternalError { description = "Constraint not found in removeConstraint"}) end
+    cassowary:tracePrint("Looking to remove var "..marker)
+    if not self.rows[marker] then
+      local col = self.columns[marker]
+      cassowary:tracePrint("Must pivot - cols are "..col)
+      local exitVar
+      local minRatio = 0
+      for i=1,#col do local v = col[i]
+        if v.isRestricted then
+          local expr = self.rows[v]
+          local coeff = expr:coefficientFor(marker)
+          cassowary:tracePrint("Marker "..marker.."'s coefficient in "..expr.." is "..coeff)
+          if coeff < 0 then
+            local r = -expr.constant / coeff
+            if (not exitVar) or r < minRatio or (
+              cassowary.approx(r, minRatio) and v.hashcode < exitVar.hashcode
+              ) then
+              minRatio = r
+              exitVar = v
+            end
+          end
+        end
+      end
+      if not exitVar then
+        cassowary:tracePrint("Exitvar still null")
+        for i=1,#col do local v = col[i]
+          if v.isRestricted then
+            local expr = self.rows[v]
+            local coeff = expr:coefficientFor(marker)
+            local r = expr.constant / coeff
+            if (not exitVar) or r < minRatio then
+              minRatio = r
+              exitVar = v
+            end
+          end
+        end        
+      end
+      if not exitVar then
+        if #col == 0 then self:removeColumn(marker)
+        else
+          local i = 1
+          while i <= #col and not exitVar do
+            if not (col[i] == self.objective) then exitVar = col[i] end
+          end
+        end
+      end
+      if exitVar then self:pivot(marker, exitVar) end
+    end
+    if self.rows[marker] then self:removeRow(marker) end
+    if eVars then
+      for i=1,#eVars do local v = eVars[i]
+        if not (v == marker) then self:removeColumn(v) end
+      end
+    end
+    if cn.isStayConstraint then
+      if eVars then 
+        for i = 1,#(self.stayPlusErrorVars) do
+          eVars[self.stayPlusErrorVars[i]] = nil
+          eVars[self.stayMinusErrorVars[i]] = nil
+        end
+      end
+    elseif cn.isEditConstraint then
+      assert(evars)
+      local cei = self.editVarMap[cn.variable]
+      self:removeColumn(cei.editMinus)
+      self.editVarMap[cn.variable] = nil
+    end
+
+    if eVars then self.errorVars[eVars] = nil end
+    if self.autoSolve then
+      self:optimize(self.objective)
+      self:setExternalVariables()
+    end
+    return self
+  end,
+  reset = function (self)
+    error(cassowary.InternalError { description = "reset not implemented" })
+  end,
+  resolveArray = function (self, newEditConstants)
+    cassowary:traceFnEnterPrint("resolveArray: "..newEditConstants)
+    local l = #newEditConstants
+    for v,cei in pairs(self.editVarMap) do
+      local i = cei.index
+      if i < l then self:suggestValue(v, newEditConstants[i]) end
+    end
+    self:resolve()
+  end,
+  resolvePair = function (self, x, y)
+    self:suggestValue(self.editVarList[1].v, x)
+    self:suggestValue(self.editVarList[2].v, y)
+  end,
+  resolve = function (self)
+    self:dualOptimize()
+    self:setExternalVariables()
+    self.infeasibleRows = Set {}  
+    self:resetStayConstants()
+  end,
+  suggestValue = function(self, v, x)
+    cassowary:traceFnEnterPrint("suggestValue: "..v.. " "..x)
+    local cei = self.editVarMap[v] or error(cassowary.Error {description = "suggestValue for variable " .. v .. ", but var is not an edit variable"})
+    local delta = x - cei.prevEditConstant
+    cei.prevEditConstant = x
+    self:deltaEditConstant(delta, cei.editPlus, cei.editMinus)
+  end,
+  solve = function (self)
+    if not self.needsSolving then return self end
+    self:optimize(self.objective)
+    self:setExternalVariables()
+    return self
+  end,
+  setEditedValue = function(self, v, n)
+    assert("Nobody calls this")
+  end,
+  addVar = function (self, v)
+    assert("Or this")
+  end,
+  getInternalInfo = function(self)
+    error("Unimplemented")
+  end,
+  addWithArtificialVariable = function (self, expr)
+    self.artificialCounter = self.artificialCounter + 1
+    local av = cassowary.SlackVariable { value = self.artificialCounter, prefix = "a"}
+    local az = cassowary.ObjectiveVariable { name = "az" }
+    local azRow = expr:clone()
+    self:addRow(az, azRow)
+    self:addRow(av, expr)
+    self:optimize(az)
+    local azTableauRow = self.rows[az]
+    if not cassowary.approx(azTableauRow.constant, 0) then
+      self:removeRow(az)
+      self:removeColumn(av)
+      error(cassowary.RequiredFailure)
+    end
+    local e = self.rows[av]
+    if e then
+      if e.isConstant then
+        self:removeRow(az)
+        self:removeColumn(av)
+        return
+      end
+      self:pivot(e:anyPivotableVariable(), av)
+    end
+    assert(not self.rows[ev])
+    self:removeRow(az)
+    self:removeColumn(av)
+  end,
+  tryAddingDirectly = function (self, expr)
+    cassowary.traceFnEnterPrint("tryAddingDirectly "..expr)
+    local subject = self:chooseSubject(expr)
+    if not subject then
+      cassowary.traceFnExitPrint("Returning false")
+      return false
+    end
+    expr:newSubject(subject)
+    if self:columnsHasKey(subject) then
+      self:substituteOut(subject, expr)
+    end
+    self:addRow(subject, expr)
+    cassowary.traceFnExitPrint("Returning true")
+    return true
+  end
 }
 
 return cassowary
