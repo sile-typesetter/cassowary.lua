@@ -155,16 +155,27 @@ cassowary.NotEnoughStays  = cassowary.Error { _type = "NotEnoughStays", descript
 cassowary.RequiredFailure = cassowary.Error { _type = "RequiredFailure", description = "A required constraint cannot be satisfied" }
 cassowary.TooDifficult    = cassowary.Error { _type = "TooDifficult", description = "The constraints are too difficult to solve" }
 
-local Set = require("std.set")
+Set = require("std.set")
+
+local SetSize = function (set)
+  local c = 0
+  for _ in Set.elems(set) do c = c + 1 end
+  return c
+end
+
+SetFirst = function(set)
+  local iter = Set.elems(set)
+  return iter(set)
+end
 
 cassowary.Tableau = std.object {
   _type = "Tableau",
   _init =  function(self)
     self.columns = {}
     self.rows = {}
-    self._infeasibleRows         = Set {}
-    self._externalRows           = Set {}
-    self._externalParametricVars = Set {}
+    self.infeasibleRows         = Set {}
+    self.externalRows           = Set {}
+    self.externalParametricVars = Set {}
     return self
   end,
   noteRemovedVariable = function(self, v, subject)
@@ -188,9 +199,9 @@ cassowary.Tableau = std.object {
     self.rows[aVar] = expr
     for clv,coeff in pairs(expr.terms) do 
       self:insertColVar(clv, aVar)
-      if clv.isExternal then Set.insert(self._externalParametricVars, clv) end
+      if clv.isExternal then Set.insert(self.externalParametricVars, clv) end
     end
-    if aVar.isExternal then Set.insert(self._externalRows, aVar) end
+    if aVar.isExternal then Set.insert(self.externalRows, aVar) end
     cassowary:tracePrint(self.."")
   end,
   removeColumn = function (self, aVar)
@@ -198,7 +209,7 @@ cassowary.Tableau = std.object {
     rows = self.columns[aVar]
     if rows then
       self.columns[aVar] = nil
-      for clv in Set.iter(rows) do
+      for clv in Set.elems(rows) do
         local expr = self.rows[clv]
         expr.terms[aVar] = nil
       end
@@ -206,8 +217,8 @@ cassowary.Tableau = std.object {
       print("Could not find "..aVar.." in columns")
     end
     if aVar.isExternal then
-      Set.delete(self._externalRows, aVar)
-      Set.delete(self._externalParametricVars, aVar)
+      Set.delete(self.externalRows, aVar)
+      Set.delete(self.externalParametricVars, aVar)
     end
   end,
   removeRow = function (self, aVar)
@@ -221,9 +232,9 @@ cassowary.Tableau = std.object {
         Set.delete(varset, aVar)
       end
     end    
-    Set.delete(self._infeasibleRows, aVar)
+    Set.delete(self.infeasibleRows, aVar)
     if aVar.isExternal then
-      Set.delete(self._externalRows, aVar)
+      Set.delete(self.externalRows, aVar)
     end
     self.rows[aVar] = nil
     cassowary:traceFnExitPrint("returning "..expr )
@@ -236,17 +247,17 @@ cassowary.Tableau = std.object {
     end
 
     local varset = self.columns[oldVar]
-    for v in Set.iter(varset) do
+    for v in Set.elems(varset) do
       local row = self.rows[v]
       row:substituteOut(oldVar, expr, v, self)
       if v.isRestricted and row.constant < 0 then
-        Set.insert(self._infeasibleRows, v)
+        Set.insert(self.infeasibleRows, v)
       end
     end
 
     if oldVar.isExternal then 
-      Set.insert(self._externalRows, oldVar)
-      Set.delete(self._externalParametricVars, oldVar)
+      Set.insert(self.externalRows, oldVar)
+      Set.delete(self.externalParametricVars, oldVar)
     end
 
     self.columns[oldVar] = nil
@@ -889,6 +900,275 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self:addRow(subject, expr)
     cassowary.traceFnExitPrint("Returning true")
     return true
+  end,
+  chooseSubject = function (self, expr)
+    cassowary.traceFnEnterPrint("chooseSubject "..expr)
+    local subject, foundUnrestricted, foundNewRestricted
+    local terms = expr.terms
+    for v,c in pairs(terms) do
+      if foundUnrestricted then
+        if not v.isRestricted and not self.columnsHasKey(v) then
+          return v
+        end
+      elseif v.isRestricted then
+        if not foundNewRestricted and not v.isDummy and c < 0 then
+          local col = this.columns[v]
+          if not col or (SetSize(col) == 1 and self:columnsHasKey(self.objective)) then
+            subject = v
+            foundNewRestricted = true
+          end
+        end
+      else
+        subject = v
+        foundUnrestricted = true
+      end
+    end
+
+    if subject then return subject end
+    local coeff = 0
+    for v,c in pairs(terms) do
+      if not v.isDummy then return v end
+      if not self:columnsHasKey(v) then
+        subject = v
+        coeff = c
+      end
+    end
+    if not cassowary.approx(expr.constant,0) then
+      error(cassowary.RequiredFailure)
+    end
+    if coeff > 0 then expr:multiplyMe(-1) end
+    return subject
+  end,
+
+  deltaEditConstant = function(self, delta, plusErrorVar, minusEditVar)
+    cassowary.traceFnEnterPrint("deltaEditConstant")
+    local exprPlus = self.rows[plusErrorVar]
+    if exprPlus then
+      exprPlus.constant = exprPlus.constant + delta
+      if exprPlus.constant < 0 then Set.insert(self.infeasibleRows,plusErrorVar) end
+      return
+    end
+
+    local exprMinus = self.rows[minusErrorVar]
+    if exprMinus then
+      exprMinus.constant = exprMinus.constant - delta
+      if exprMinus.constant < 0 then Set.insert(self.infeasibleRows,minusErrorVar) end
+      return
+    end
+
+    local columnVars = self.columns[minusErrorVar]
+    if not columnVars then print("columnVars is null!") end
+    for basicVar in Set.elems(columnVars) do
+      local expr = self.rows[basicVar]
+      local c = expr:coefficientFor(minusErrorVar)
+      expr.constant = expr.constant + (c * delta)
+      if basicVar.isRestricted and expr.constant < 0 then
+        Set.insert(self.infeasibleRows,basicVar)
+      end
+    end
+  end,
+  dualOptimize = function (self)
+    cassowary.traceFnEnterPrint("dualOptimize")
+    local zRow = self.rows[self.objective]
+    while SetSize(self.infeasibleRows) > 0 do
+      local exitVar = SetFirst(self.infeasibleRows)
+      Set.delete(self.infeasibleRows, exitVar)
+      local entryVar = nil
+      expr = self.rows[exitVar]
+      if expr and expr.constant < 0 then
+        local ratio = 1/0
+        local r
+        local terms = expr.terms
+        for v,cd in pairs(terms) do
+          if cd > 0 and v.isPivotable then
+            local zc = zRow:coeffientFor(v)
+            r = zc / cd
+            if r < ratio or (cassowary.approx(r, ratio) and v.hashcode < entryVar.hashcode) then
+              entryVar = v
+              ratio = r
+            end
+          end
+        end
+        if ratio == 1/0 then
+          error(cassowary.InternalError { description = "ratio == nil in dualOptimize"})
+        end
+        self:pivot(entryVar, exitVar)
+      end
+    end
+  end,
+  newExpression = function (self, cn)
+    cassowary.traceFnEnterPrint("newExpression "..cn)
+    local cnExpr = cn.expression
+    local expr = cassowary.Expression.fromConstant(cnExpr.constant)
+    local slackvar = cassowary.SlackVariable {}
+    local dummyvar = cassowary.DummyVariable {}
+    local eminus = cassowary.SlackVariable {}
+    local eplus = cassowary.SlackVariable {}
+    local cnTerms = cnExpr.terms
+    local eplus_eminus = {}
+    local prevEConstant
+
+    for v,c in pairs(cnTerms) do
+      local e = self.rows[v]
+      if not e then expr:addVariable(v,c) else expr:addExpression(e,c) end
+    end
+
+    if cn.isInequality then
+      cassowary.tracePrint("Inequality, adding slack")
+      self.slackCounter = self.slackCounter + 1
+      slackvar = cassowary.SlackVariable { value = self.slackCounter, prefix = "s" }
+      expr:setVariable(slackvar, -1)
+      self.markerVars[cn] = slackvar
+      if not cn:required() then
+        self.slackCounter = self.slackCounter + 1
+        eminus = cassowary.SlackVariable { value = self.slackCounter, prefix = "em" }
+        expr:setVariable(eminus, 1)
+        local zRow = self.rows[self.objective]
+        zRow:setVariable(eminus, cn.strength.symbolicWeight.value * cn.weight)
+        self:insertErrorVar(cn, eminus)
+        self:noteAddedVariable(eminus, self.objective)
+      end
+    elseif cn:required() then
+      cassowary.tracePrint("Equality, required")
+      self.dummyCounter = self.dummyCounter + 1
+      dummyvar = cassowary.DummyVariable { value = self.dummyCounter, prefix = "d" }
+      eplus_eminus[1] = dummyvar
+      eplus_eminus[2] = dummyvar
+      prevEConstant = cnExpr.constant
+      expr:setVariable(dummyvar, 1)
+      self.markerVars[cn] = dummyvar
+      cassowary.tracePrint("Adding dummy var d"..self.dummyCounter)
+    else
+      cassowary.tracePrint("Equality, not required")
+      self.slackCounter = self.slackCounter + 1
+      eplus = cassowary.SlackVariable { value = self.slackCounter, prefix = "ep" }
+      eminus = cassowary.SlackVariable { value = self.slackCounter, prefix = "em" }
+      expr:setVariable(eplus, -1)
+      expr:setVariable(eminus, 1)
+      set.markerVars[cn] = eplus
+      local zRow = self.rows[self.objective]
+      cassowary.tracePrint(zRow)
+      local swCoeff = cn.strength.symbolicWeight.value * cn.weight
+      if swCoeff == 0 then
+        cassowary.tracePrint("cn === "..cn.. " swCoeff = 0")
+      end
+      zRow:setVariable(eplus, swCoeff)
+      self:noteAddedVariable(eplus, self.objective)
+      zRow:setVariable(eminus, swCoeff)
+      self:noteAddedVariable(eminus, self.objective)
+      self:insertErrorVar(cn, eminus)
+      self:insertErrorVar(cn, eplus)
+      if cn.isStayConstraint then
+        self.stayPlusErrorVars[#self.stayPlusErrorVars+1] = eplus
+        self.stayMinusErrorVars[#self.stayMinusErrorVars+1] = eminus
+      elseif cn.isEditConstraint then
+        eplus_eminus[1] = eplus
+        eplus_eminus[2] = eminus
+        prevEConstant = cnExpr.constant
+      end
+    end
+    if expr.constant <0 then expr:multiplyMe(-1) end
+    return expr, eplus_eminus, prevEConstant
+  end,
+  optimize = function (self, zVar)
+    cassowary.traceFnEnterPrint("optimize: "..self.." "..zVar)
+    self.optimizeCount = self.optimizeCount + 1
+    local zRow = self.rows[zVar]
+    assert(zRow)
+    local entryVar, exitVar, objectiveCoeff, terms
+    while true do 
+      objectiveCoeff = 0
+      terms = zRow.terms
+      for v,c in pairs(terms) do
+        if v.isPivotable and c < objectiveCoeff then
+          objectiveCoeff = c
+          entryVar = v
+          break
+        end
+      end
+      if objectiveCoeff >= cassowary.epsilon then return end
+
+      cassowary.tracePrint("entryVar: "..entryVar.." objectiveCoeff: "..objectiveCoeff)
+
+      local minRatio = 2^64
+      local columnVars = self.columns[entryVar]
+      local r = 0
+
+      for v in Set.elems(columnVars) do
+        cassowary.tracePrint("Checking "..v)
+        if v.isPivotable then
+          local expr = self.rows[v]
+          local coeff = expr:coefficientFor(entryVar)
+          cassowary.tracePrint("pivotable, coeff is "..coeff)
+          if coeff < 0 then
+            r = -expr.constant / coeff
+            if r < minRatio or (cassowary.approx(r, minRatio) and v.hashcode < exitVar.hashcode) then
+              minRatio = r
+              exitVar = v
+            end
+          end
+        end
+      end
+
+      if minRatio == 2^64 then 
+        error(cassowary.InternalError { description = "Objective function is unbounded in optimize"})
+      end
+      self:pivot(entryVar, exitVar)
+    end
+  end,
+
+  pivot = function(self, entryVar, exitVar)
+    cassowary.tracePrint("pivot: "..entryVar..", "..exitVar)
+    local expr = self:removeRow(exitVar)
+    expr:changeSubject(exitVar, entryVar)
+    self:substituteOut(entryVar, expr)
+    self:addRow(entryVar, expr)
+  end,
+  resetStayConstants = function (self)
+    cassowary.tracePrint("resetStayConstants")
+    local spev = self.stayPlusErrorVars
+    local i
+    for i = 1,#spev do
+      local expr = self.rows[spev[i]]
+      if not expr then expr = self.rows[self.stayMinusErrorVars[i]] end
+      if expr then expr.constant = 0 end
+    end
+  end,
+
+  setExternalVariables = function(self)
+    cassowary.tracePrint("setExternalVariables")
+    local changed = {}
+    for v in Set.elems(self.externalParametricVars) do
+      if not self.rows[v] then
+        cassowary.tracePrint("Error: variable" .. v .. " in _externalParametricVars is basic")
+      else
+        v.value = 0
+        changed[v.name] = 0
+      end
+    end
+
+    for v in Set.elems(self.externalRows) do
+      local expr = self.rows[v]
+      if not (v.value == expr.constant) then
+        v.value = expr.constant
+        changed[v.name] = expr.constant
+      end
+    end
+
+    self.changed = changed
+    self.needsSolving = false
+    -- self:informCallbacks()
+    -- self:onsolved()
+  end,
+
+  insertErrorVar = function (self, cn, aVar)
+    cassowary.tracePrint("insertErrorVar: "..cn..", "..aVar)
+    local constraintSet = self.errorVars[aVar]
+    if not constraintSet then
+      constraintSet = Set {}
+      self.errorVars[cn] = constraintSet
+    end
+    Set.insert(constraintSet, aVar)
   end
 }
 
