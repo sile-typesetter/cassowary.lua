@@ -11,9 +11,9 @@ assert = require("luassert")
 				local tab = c.Tableau {}
 				assert.is.same(0, #(tab.columns));
 				assert.is.same(0, #(tab.rows));
-				assert.is.same(0, #(tab._infeasibleRows));
-				assert.is.same(0, #(tab._externalRows));
-				assert.is.same(0, #(tab._externalParametricVars));
+				assert.is.same(0, #(tab.infeasibleRows));
+				assert.is.same(0, #(tab.externalRows));
+				assert.is.same(0, #(tab.externalParametricVars));
 			end)
 		end)
 	end)
