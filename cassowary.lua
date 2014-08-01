@@ -242,7 +242,6 @@ cassowary.Tableau = std.object {
     for clv,coeff in pairs(expr.terms) do 
       local varset = self.columns[clv]
       if varset then
-        print("Removing from varset "..aVar )
         Set.delete(varset, aVar)
       end
     end    
@@ -687,7 +686,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self.editVarList[i+1] = {v = cn.variable, info = ei}
   end,
   addConstraint = function(self, cn)
-    cassowary:traceFnEnterPrint("addConstaint: "..cn)
+    cassowary:traceFnEnterPrint("addConstraint: "..cn)
     local expr, eplus_eminus, prevEConstant = self:newExpression(cn)
     if not self:tryAddingDirectly(expr) then self:addWithArtificialVariable(expr) end
     self.needsSolving = true
@@ -744,7 +743,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
   end,
   addStay = function (self, v, strength, weight)
     local cn = cassowary.StayConstraint(v, strength or cassowary.Strength.weak, weight or 1)
-    self:addConstraint(cn)
+    return self:addConstraint(cn)
   end,
   removeConstraint = function (self, cn)
     cassowary:traceFnEnterPrint("removeConstraint: "..cn)
@@ -870,6 +869,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local delta = x - cei.prevEditConstant
     cei.prevEditConstant = x
     self:deltaEditConstant(delta, cei.editPlus, cei.editMinus)
+    return self
   end,
   solve = function (self)
     if not self.needsSolving then return self end
@@ -957,9 +957,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local coeff = 0
     local oneNonDummy = false
     for v,c in pairs(terms) do
-      print("Testing "..v.." = "..c)      
       if not v.isDummy then
-        print("v isn't dummy")
         oneNonDummy = true
         break
       end
@@ -973,13 +971,12 @@ cassowary.SimplexSolver = cassowary.Tableau {
       error(cassowary.RequiredFailure)
     end
     if coeff > 0 then expr:multiplyMe(-1) end
-    print("Returning "..subject)
 
     return subject
   end,
 
   deltaEditConstant = function(self, delta, plusErrorVar, minusErrorVar)
-    cassowary:traceFnEnterPrint("deltaEditConstant".. " "..delta.." "..plusErrorVar.." "..minusEditVar)
+    cassowary:traceFnEnterPrint("deltaEditConstant".. " "..delta.." "..plusErrorVar.." "..minusErrorVar)
     local exprPlus = self.rows[plusErrorVar]
     if exprPlus then
       exprPlus.constant = exprPlus.constant + delta
