@@ -49,8 +49,8 @@ cassowary = {
   end,
   approx = function (a,b)
     if a == b then return true end
-    a = 0 + a
-    b = 0 + b
+    a = type(a) == "table" and a.value or 0 + a
+    b = type(b) == "table" and b.value or 0 + b
     if a == 0 then return math.abs(b) < epsilon end
     if b == 0 then return math.abs(a) < epsilon end
     return (math.abs(a - b) < math.abs(a) * epsilon)
@@ -228,7 +228,7 @@ cassowary.Tableau = std.object {
         expr.terms[aVar] = nil
       end
     else
-      print("Could not find "..aVar.." in columns")
+      --print("Could not find "..aVar.." in columns")
     end
     if aVar.isExternal then
       Set.delete(self.externalRows, aVar)
@@ -519,6 +519,7 @@ cassowary.Inequality = cassowary.Constraint {
   end,
   initializer = function (self, a1, a2, a3, a4, a5)  
     -- This disgusting mess copied from slightyoff's disgusting mess
+    -- (cle || number), op, cv
     if (type(a1) == "number" or a1:prototype() == "Expression") and type(a3) == "table" and a3:prototype() == "AbstractVariable" then
       local cle, op, cv, strength, weight = a1, a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
@@ -530,6 +531,7 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
+    -- cv, op, (cle || number)
     elseif type(a1) == "table" and a1:prototype() == "AbstractVariable" and a3 and (type(a3) == "number" or a3:prototype() == "Expression") then
       local cle, op, cv, strength, weight = a3,a2,a1,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
@@ -541,16 +543,17 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
+    -- cle, op, num  
     elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "number" then
       -- I feel like I'm writing Java
       local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
       if op == "<=" then
         self.expression:multiplyMe(-1)
-        self.expression:addVariable(self:cloneOrNewCle(cle2))
+        self.expression:addExpression(self:cloneOrNewCle(cle2))
       elseif op == ">=" then
         -- Just keep turning the crank and the code keeps coming out
-        self.expression:addVariable(self:cloneOrNewCle(cle2), -1)
+        self.expression:addExpression(self:cloneOrNewCle(cle2), -1)
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
@@ -560,9 +563,9 @@ cassowary.Inequality = cassowary.Constraint {
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
       if op == ">=" then
         self.expression:multiplyMe(-1)
-        self.expression:addVariable(self:cloneOrNewCle(cle2))
+        self.expression:addExpression(self:cloneOrNewCle(cle2))
       elseif op == "<=" then
-        self.expression:addVariable(self:cloneOrNewCle(cle2), -1)
+        self.expression:addExpression(self:cloneOrNewCle(cle2), -1)
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
@@ -664,7 +667,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self.needsSolving = false
     self.optimizeCount = 0
     self.rows[self.objective] = cassowary.Expression.empty()
-    self.editVariableStack = { 1 }
+    self.editVariableStack = { 0 } -- A stack of *element counts*
     if cassowary.trace then
       cassowary:tracePrint("objective expr == "..self.rows[self.objective])
     end
@@ -675,7 +678,8 @@ cassowary.SimplexSolver = cassowary.Tableau {
     return self
   end,
   addEditConstraint = function (self, cn, eplus_eminus, prevEConstant)
-    local i = #(self.editVarMap)
+    local i = 0
+    for _ in pairs(self.editVarMap) do i = i + 1 end
     local cvEplus, cvEminus = eplus_eminus[1], eplus_eminus[2]
     local ei = cassowary.EditInfo { constraint = cn, 
       editPlus = cvEplus, 
@@ -706,31 +710,39 @@ cassowary.SimplexSolver = cassowary.Tableau {
     return self:addConstraint(cassowary.EditConstraint(v, strength or cassowary.Strength.strong, weight));
   end,
   beginEdit = function(self)
-    -- You can't use # on a hash table
-    -- assert(#(self.editVarMap) > 0)
+    local count = 0
+    for _ in pairs(self.editVarMap) do count = count + 1 end
+    assert(count > 0)
     self.infeasibleRows = Set {}
     self:resetStayConstants();
-    self.editVariableStack[#(self.editVariableStack)+1] = #(self.editVarMap)
+    self.editVariableStack[#(self.editVariableStack)+1] = count
     return self;
   end,
   endEdit = function ( self )
-    -- assert(#(self.editVarMap) > 0)
+    local count = 0
+    for _ in pairs(self.editVarMap) do count = count + 1 end
+    assert(count > 0)
     self:resolve()
     table.remove(self.editVariableStack)
-    self:removeEditVarsTo(self.editVariableStack[#(self.editVariableStack)])
+    local last = self.editVariableStack[#(self.editVariableStack)]
+    self:removeEditVarsTo(last)
     return self
   end,
   removeAllEditVars = function(self)
-    self:removeEditVarsTo(1)
+    self:removeEditVarsTo(0)
   end,
   removeEditVarsTo = function(self, n)
-    for k=n,#(self.editVarList) do
+    -- n is a count, which in lua is not an index
+    for k=n+1,#(self.editVarList) do
       if self.editVarList[k] then
-        local v = self.editVarMap[k].v
+        local v = self.editVarMap[self.editVarList[k].v]
         self:removeConstraint(v.constraint)
       end
       self.editVarList[k] = nil
     end
+    local count = 0
+    for _ in pairs(self.editVarMap) do count = count + 1 end
+    assert(count == n)    
   end,
   addPointStays = function(self, points)
     cassowary:traceFnEnterPrint("addPointStays: "..points)
@@ -752,9 +764,9 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local zrow = self.rows[self.objective]
     local evars = self.errorVars[cn]
     cassowary:tracePrint("evars: "..evars)
+
     if evars then
-      for i =1,#evars do
-        local cv = evars[i]
+      for cv in Set.elems(evars) do
         local expr = self.rows[cv]
         if not expr then
           zrow:addVariable(cv, -cn.weight * cn.strength.symbolicWeight.value, self.objective, self)
@@ -769,11 +781,11 @@ cassowary.SimplexSolver = cassowary.Tableau {
     if not marker then error(cassowary.InternalError { description = "Constraint not found in removeConstraint"}) end
     cassowary:tracePrint("Looking to remove var "..marker)
     if not self.rows[marker] then
-      local col = self.columns[marker]
-      cassowary:tracePrint("Must pivot - cols are "..col)
+      local col = self.columns[marker] -- XXX
+      --cassowary:tracePrint("Must pivot - cols are "..col)
       local exitVar
       local minRatio = 0
-      for i=1,#col do local v = col[i]
+      for v in Set.elems(col) do
         if v.isRestricted then
           local expr = self.rows[v]
           local coeff = expr:coefficientFor(marker)
@@ -791,7 +803,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
       end
       if not exitVar then
         cassowary:tracePrint("Exitvar still null")
-        for i=1,#col do local v = col[i]
+        for v in Set.elems(col) do
           if v.isRestricted then
             local expr = self.rows[v]
             local coeff = expr:coefficientFor(marker)
@@ -936,7 +948,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local terms = expr.terms
     for v,c in pairs(terms) do
       if foundUnrestricted then
-        if not v.isRestricted and not self.columnsHasKey(v) then
+        if not v.isRestricted and not self:columnsHasKey(v) then
           return v
         end
       elseif v.isRestricted then
@@ -1175,7 +1187,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     cassowary:tracePrint("setExternalVariables")
     local changed = {}
     for v in Set.elems(self.externalParametricVars) do
-      if not self.rows[v] then
+      if self.rows[v] then
         cassowary:tracePrint("Error: variable" .. v .. " in _externalParametricVars is basic")
       else
         v.value = 0
