@@ -61,7 +61,10 @@ cassowary = {
   end
 }
 
-cassowary.AbstractVariable = std.object {
+local object = require "std.object"
+local Object = object { }
+
+cassowary.AbstractVariable = Object {
   varnameprefix = "",
   prefix = "",
   name = "",
@@ -112,7 +115,7 @@ cassowary.SlackVariable = cassowary.AbstractVariable {
 }
 
 local _multiplier = 1000
-cassowary.SymbolicWeight = std.object {
+cassowary.SymbolicWeight = Object {
   _type = "SymbolicWeight",
   _init = function ( self, coefficients )
     self.value = 0
@@ -125,7 +128,7 @@ cassowary.SymbolicWeight = std.object {
   end
 }
 
-cassowary.Strength = std.object {
+cassowary.Strength = Object {
   _type = "Strength",
   _init = function ( self, name, w1, w2, w3 )
     self.name = name
@@ -137,7 +140,7 @@ cassowary.Strength = std.object {
     return self
   end,
   isRequired = function ( self ) return self == cassowary.Strength.required end,
-  __tostring = function ( self ) return self.name .. (self:isRequired() and "" or ":"..self.symbolicWeight) end
+  __tostring = function ( self ) return self.name .. (self:isRequired() and "" or ":"..tostring(self.symbolicWeight)) end
 }
 
 cassowary.Strength.required = cassowary.Strength("<Required>", 1000, 1000, 1000 )
@@ -145,9 +148,9 @@ cassowary.Strength.strong = cassowary.Strength("strong", 1, 0, 0)
 cassowary.Strength.medium = cassowary.Strength("medium", 0, 1, 0)
 cassowary.Strength.weak = cassowary.Strength("weak", 0, 0, 1)
 
-cassowary.EditInfo = std.object {_type = "EditInfo"}
+cassowary.EditInfo = Object {_type = "EditInfo"}
 
-cassowary.Error = std.object { _type = "Error", description = "An error has occured in Cassowary" }
+cassowary.Error = Object { _type = "Error", description = "An error has occured in Cassowary" }
 cassowary.ConstraintError = cassowary.Error { _type = "ConstraintError", description = "Tried to remove a constraint never added to the tableau" }
 cassowary.InternalError   = cassowary.Error { _type = "InternalError" }
 cassowary.NonExpression   = cassowary.Error { _type = "NonExpression", description = "The resulting expression would be non" }
@@ -168,7 +171,7 @@ SetFirst = function(set)
   return iter(set)
 end
 
-cassowary.Tableau = std.object {
+cassowary.Tableau = Object {
   _type = "Tableau",
   _init = function(self, ...)
     local specializer = {}
@@ -176,9 +179,9 @@ cassowary.Tableau = std.object {
     local args = {...}
     if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
       specializer = table.remove(args,1)
-      newObject = std.object.mapfields(self,specializer)
+      newObject = Object.mapfields(self,specializer)
     else -- I am instantiating
-      newObject = std.object.mapfields(self,{})
+      newObject = Object.mapfields(self,{})
       newObject:initializer(unpack(args))
     end
     return newObject
@@ -200,7 +203,7 @@ cassowary.Tableau = std.object {
     if subject then self:insertColVar(v,subject) end
   end,
   insertColVar = function (self, paramVar, rowvar)
-    cassowary:traceFnEnterPrint("insertColVar "..paramVar.." "..rowvar)
+    cassowary:traceFnEnterPrint("insertColVar "..tostring(paramVar).." "..tostring(rowvar))
     local rowset = self.columns[paramVar]
     if not rowset then
       rowset = Set {}
@@ -209,7 +212,7 @@ cassowary.Tableau = std.object {
     Set.insert(rowset, rowvar)
   end,
   addRow = function (self, aVar, expr)
-    cassowary:traceFnEnterPrint("addRow: "..aVar..", "..expr)
+    cassowary:traceFnEnterPrint("addRow: "..tostring(aVar)..", "..tostring(expr))
     self.rows[aVar] = expr
     for clv,coeff in pairs(expr.terms) do 
       self:insertColVar(clv, aVar)
@@ -219,7 +222,7 @@ cassowary.Tableau = std.object {
     -- cassowary:tracePrint(self.."")
   end,
   removeColumn = function (self, aVar)
-    cassowary:traceFnEnterPrint("removeColumn: "..aVar )
+    cassowary:traceFnEnterPrint("removeColumn: "..tostring(aVar) )
     rows = self.columns[aVar]
     if rows then
       self.columns[aVar] = nil
@@ -236,7 +239,7 @@ cassowary.Tableau = std.object {
     end
   end,
   removeRow = function (self, aVar)
-    cassowary:traceFnEnterPrint("removeRow: "..aVar )
+    cassowary:traceFnEnterPrint("removeRow: "..tostring(aVar) )
     local expr = self.rows[aVar]
     assert(expr)
     for clv,coeff in pairs(expr.terms) do 
@@ -250,12 +253,12 @@ cassowary.Tableau = std.object {
       Set.delete(self.externalRows, aVar)
     end
     self.rows[aVar] = nil
-    cassowary:traceFnExitPrint("returning "..expr )
+    cassowary:traceFnExitPrint("returning "..tostring(expr) )
     return expr
   end,
   substituteOut = function (self, oldVar, expr)
     if cassowary.trace then
-      cassowary:traceFnEnterPrint("substituteOut: "..oldVar)
+      cassowary:traceFnEnterPrint("substituteOut: "..tostring(oldVar))
     end
 
     local varset = self.columns[oldVar]
@@ -279,7 +282,7 @@ cassowary.Tableau = std.object {
   end
 }
 
-cassowary.Expression = std.object { 
+cassowary.Expression = Object { 
   _type = "Expression",
   _init = function(self, cvar, value, constant)
     self.hashcode = cassowary.gensym()
@@ -449,7 +452,7 @@ cassowary.Expression = std.object {
   fromVariable = function(v) return cassowary.Expression(v,1,0) end
 }
 
-local _constraintStringify = function (self) return self.strength .. " {" .. self.weight .. "} (" .. self.expression .. ")" end
+local _constraintStringify = function (self) return tostring(self.strength) .. " {" .. tostring(self.weight) .. "} (" .. tostring(self.expression) .. ")" end
 
 local abcon_init = function (self, strength, weight)
     self.hashcode = cassowary.gensym()
@@ -458,7 +461,7 @@ local abcon_init = function (self, strength, weight)
     return self
   end
 
-cassowary.AbstractConstraint = std.object {
+cassowary.AbstractConstraint = Object {
   _type = "AbstractConstraint",
   isEditConstraint = false,
   isInequality = false,
@@ -469,9 +472,9 @@ cassowary.AbstractConstraint = std.object {
     local args = {...}
     if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
       specializer = table.remove(args,1)
-      newObject = std.object.mapfields(self,specializer)
+      newObject = Object.mapfields(self,specializer)
     else -- I am instantiating
-      newObject = std.object.mapfields(self,{})
+      newObject = Object.mapfields(self,{})
       newObject:initializer(unpack(args))
     end
     return newObject
@@ -644,9 +647,9 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local args = {...}
     if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
       specializer = table.remove(args,1)
-      newObject = std.object.mapfields(self,specializer)
+      newObject = Object.mapfields(self,specializer)
     else -- I am instantiating
-      newObject = std.object.mapfields(self,{})
+      newObject = Object.mapfields(self,{})
       newObject:initializer(unpack(args))
     end
     return newObject
@@ -690,7 +693,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self.editVarList[i+1] = {v = cn.variable, info = ei}
   end,
   addConstraint = function(self, cn)
-    cassowary:traceFnEnterPrint("addConstraint: "..cn)
+    cassowary:traceFnEnterPrint("addConstraint: "..tostring(cn))
     local expr, eplus_eminus, prevEConstant = self:newExpression(cn)
     if not self:tryAddingDirectly(expr) then self:addWithArtificialVariable(expr) end
     self.needsSolving = true
@@ -702,11 +705,11 @@ cassowary.SimplexSolver = cassowary.Tableau {
     return self
   end,
   addConstraintNoException = function (self,cn)
-    cassowary:traceFnEnterPrint("addConstaintNoException: "..cn)
+    cassowary:traceFnEnterPrint("addConstaintNoException: "..tostring(cn))
     return pcall(self.addConstraint, self, cn)
   end,
   addEditVar = function (self, v, strength, weight)
-    cassowary:traceFnEnterPrint("addEditVar: " .. v .. " @ " .. strength .. " {" .. weight .. "}");
+    cassowary:traceFnEnterPrint("addEditVar: " .. tostring(v) .. " @ " .. tostring(strength) .. " {" .. tostring(weight) .. "}");
     return self:addConstraint(cassowary.EditConstraint(v, strength or cassowary.Strength.strong, weight));
   end,
   beginEdit = function(self)
@@ -745,7 +748,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     assert(count == n)    
   end,
   addPointStays = function(self, points)
-    cassowary:traceFnEnterPrint("addPointStays: "..points)
+    cassowary:traceFnEnterPrint("addPointStays: "..tostring(points))
     for i = 1,#points do
       local p = points[i]
       self:addStay(p.x, cassowary.Strength.weak, 2^i)
@@ -758,12 +761,12 @@ cassowary.SimplexSolver = cassowary.Tableau {
     return self:addConstraint(cn)
   end,
   removeConstraint = function (self, cn)
-    cassowary:traceFnEnterPrint("removeConstraint: "..cn)
+    cassowary:traceFnEnterPrint("removeConstraint: "..tostring(cn))
     self.needsSolving = true
     self:resetStayConstants()
     local zrow = self.rows[self.objective]
     local evars = self.errorVars[cn]
-    cassowary:tracePrint("evars: "..evars)
+    cassowary:tracePrint("evars: "..tostring(evars))
 
     if evars then
       for cv in Set.elems(evars) do
@@ -773,13 +776,13 @@ cassowary.SimplexSolver = cassowary.Tableau {
         else
           zrow:addExpression(expr, -cn.weight * cn.strength.symbolicWeight.value, self.objective, self)
         end
-        cassowary:tracePrint("now evars: "..evars)
+        cassowary:tracePrint("now evars: "..tostring(evars))
       end
     end
     local marker = self.markerVars[cn]
     self.markerVars[cn] = nil
     if not marker then error(cassowary.InternalError { description = "Constraint not found in removeConstraint"}) end
-    cassowary:tracePrint("Looking to remove var "..marker)
+    cassowary:tracePrint("Looking to remove var "..tostring(marker))
     if not self.rows[marker] then
       local col = self.columns[marker] -- XXX
       --cassowary:tracePrint("Must pivot - cols are "..col)
@@ -789,7 +792,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
         if v.isRestricted then
           local expr = self.rows[v]
           local coeff = expr:coefficientFor(marker)
-          cassowary:tracePrint("Marker "..marker.."'s coefficient in "..expr.." is "..coeff)
+          cassowary:tracePrint("Marker "..tostring(marker).."'s coefficient in "..tostring(expr).." is "..tostring(coeff))
           if coeff < 0 then
             local r = -expr.constant / coeff
             if (not exitVar) or r < minRatio or (
@@ -876,7 +879,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self:resetStayConstants()
   end,
   suggestValue = function(self, v, x)
-    cassowary:traceFnEnterPrint("suggestValue: "..v.. " "..x)
+    cassowary:traceFnEnterPrint("suggestValue: "..tostring(v).. " "..tostring(x))
     local cei = self.editVarMap[v] or error(cassowary.Error {description = "suggestValue for variable " .. v .. ", but var is not an edit variable"})
     local delta = x - cei.prevEditConstant
     cei.prevEditConstant = x
@@ -899,7 +902,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     error("Unimplemented")
   end,
   addWithArtificialVariable = function (self, expr)
-    cassowary:traceFnEnterPrint("addWithArtificialVariable "..expr)
+    cassowary:traceFnEnterPrint("addWithArtificialVariable "..tostring(expr))
     self.artificialCounter = self.artificialCounter + 1
     local av = cassowary.SlackVariable { value = self.artificialCounter, prefix = "a"}
     local az = cassowary.ObjectiveVariable { name = "az" }
@@ -908,7 +911,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self:addRow(av, expr)
     self:optimize(az)
     local azTableauRow = self.rows[az]
-    cassowary:tracePrint("azTableauRow.constant == " .. azTableauRow.constant);
+    cassowary:tracePrint("azTableauRow.constant == " .. tostring(azTableauRow.constant))
     if not cassowary.approx(azTableauRow.constant, 0) then
       self:removeRow(az)
       self:removeColumn(av)
@@ -928,7 +931,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self:removeRow(az)
   end,
   tryAddingDirectly = function (self, expr)
-    cassowary:traceFnEnterPrint("tryAddingDirectly "..expr)
+    cassowary:traceFnEnterPrint("tryAddingDirectly "..tostring(expr))
     local subject = self:chooseSubject(expr)
     if not subject then
       cassowary:traceFnExitPrint("Returning false")
@@ -943,7 +946,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     return true
   end,
   chooseSubject = function (self, expr)
-    cassowary:traceFnEnterPrint("chooseSubject "..expr)
+    cassowary:traceFnEnterPrint("chooseSubject "..tostring(expr))
     local subject, foundUnrestricted, foundNewRestricted
     local terms = expr.terms
     for v,c in pairs(terms) do
@@ -988,7 +991,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
   end,
 
   deltaEditConstant = function(self, delta, plusErrorVar, minusErrorVar)
-    cassowary:traceFnEnterPrint("deltaEditConstant".. " "..delta.." "..plusErrorVar.." "..minusErrorVar)
+    cassowary:traceFnEnterPrint("deltaEditConstant".. " "..tostring(delta).." "..tostring(plusErrorVar).." "..tostring(minusErrorVar))
     local exprPlus = self.rows[plusErrorVar]
     if exprPlus then
       exprPlus.constant = exprPlus.constant + delta
@@ -1044,7 +1047,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     end
   end,
   newExpression = function (self, cn)
-    cassowary:traceFnEnterPrint("newExpression "..cn)
+    cassowary:traceFnEnterPrint("newExpression "..tostring(cn))
     local cnExpr = cn.expression
     local expr = cassowary.Expression.fromConstant(cnExpr.constant)
     local slackvar = cassowary.SlackVariable {}
@@ -1118,7 +1121,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     return expr, eplus_eminus, prevEConstant
   end,
   optimize = function (self, zVar)
-    cassowary:traceFnEnterPrint("optimize: "..zVar)
+    cassowary:traceFnEnterPrint("optimize: "..tostring(zVar))
     self.optimizeCount = self.optimizeCount + 1
     local zRow = self.rows[zVar]
     assert(zRow)
@@ -1133,7 +1136,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
           break
         end
       end
-      cassowary:tracePrint("entryVar: "..entryVar.." objectiveCoeff: "..objectiveCoeff)
+      cassowary:tracePrint("entryVar: "..tostring(entryVar).." objectiveCoeff: "..tostring(objectiveCoeff))
 
       if objectiveCoeff >= -epsilon then return end
 
@@ -1143,11 +1146,11 @@ cassowary.SimplexSolver = cassowary.Tableau {
       local r = 0
 
       for v in Set.elems(columnVars) do
-        cassowary:tracePrint("Checking "..v)
+        cassowary:tracePrint("Checking "..tostring(v))
         if v.isPivotable then
           local expr = self.rows[v]
           local coeff = expr:coefficientFor(entryVar)
-          cassowary:tracePrint("pivotable, coeff is "..coeff)
+          cassowary:tracePrint("pivotable, coeff is "..tostring(coeff))
           if coeff < 0 then
             r = -expr.constant / coeff
             if r < minRatio or (cassowary.approx(r, minRatio) and v.hashcode < exitVar.hashcode) then
@@ -1166,7 +1169,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
   end,
 
   pivot = function(self, entryVar, exitVar)
-    cassowary:tracePrint("pivot: "..entryVar..", "..exitVar)
+    cassowary:tracePrint("pivot: "..tostring(entryVar)..", "..tostring(exitVar))
     local expr = self:removeRow(exitVar)
     expr:changeSubject(exitVar, entryVar)
     self:substituteOut(entryVar, expr)
@@ -1188,7 +1191,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local changed = {}
     for v in Set.elems(self.externalParametricVars) do
       if self.rows[v] then
-        cassowary:tracePrint("Error: variable" .. v .. " in _externalParametricVars is basic")
+        cassowary:tracePrint("Error: variable" .. tostring(v) .. " in _externalParametricVars is basic")
       else
         v.value = 0
         changed[v.name] = 0
@@ -1210,7 +1213,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
   end,
 
   insertErrorVar = function (self, cn, aVar)
-    cassowary:tracePrint("insertErrorVar: "..cn..", "..aVar)
+    cassowary:tracePrint("insertErrorVar: "..tostring(cn)..", "..tostring(aVar))
     local constraintSet = self.errorVars[aVar]
     if not constraintSet then
       constraintSet = Set {}

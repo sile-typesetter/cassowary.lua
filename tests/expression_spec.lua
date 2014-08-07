@@ -5,32 +5,32 @@ assert = require("luassert")
 		it('is constructable with 3 variables as arguments', function ()
 			local x = c.Variable { name = 'x', value = 167 }
 			local e = c.Expression(x, 2, 3);
-			assert.is.same(""..e, '3 + 2*167');
+			assert.is.same(tostring(e), '3 + 2*167');
 		end)
 	end)
 
 		it('is constructable with one parameter', function ()
-			assert.is.same(c.Expression(4)..'', '4');
+			assert.is.same(tostring(c.Expression(4)), '4');
 		end);
 
 		it('plus', function ()
 			local x1 = c.Variable { name = 'x', value = 167 }
-			assert.same(c.plus(4, 2)..'', '6');
-			assert.same(c.plus(x1, 2)..'', '2 + 1*167');
-			assert.same(c.plus(3, x1)..'', '3 + 1*167');
+			assert.same(tostring(c.plus(4, 2)), '6');
+			assert.same(tostring(c.plus(x1, 2)), '2 + 1*167');
+			assert.same(tostring(c.plus(3, x1)), '3 + 1*167');
 		end);
 
 		it('times', function () 
 			local x2 = c.Variable { name= 'x', value= 167 };
-			assert.same(c.times(x2, 3)..'', '3*167');
-			assert.same(c.times(7, x2)..'', '7*167');
+			assert.same(tostring(c.times(x2, 3)), '3*167');
+			assert.same(tostring(c.times(7, x2)), '7*167');
 		end);
 
 		it('complex', function ()
 			local x3 = c.Variable { name= 'x', value= 167 };
 			local y1 = c.Variable { name= 'y', value= 2 };
 			local ex = c.plus(4, c.plus(c.times(x3, 3), c.times(2, y1)));
-			assert.same(ex..'', '4 + 3*167 + 2*2');
+			assert.same(tostring(ex), '4 + 3*167 + 2*2');
 		end);
 
 		it('zero_args', function ()
@@ -306,14 +306,14 @@ assert = require("luassert")
 		it('toString', function ()
 			local v = c.Variable({ name = 'v', value = 5 })
 
-			assert.same(c.Expression.fromConstant(10)..'', '10');
-			assert.same(c.Expression(v, 0, 10)..'', '10 + 0*5');
+			assert.same(tostring(c.Expression.fromConstant(10)), '10');
+			assert.same(tostring(c.Expression(v, 0, 10)), '10 + 0*5');
 
 			local e = c.Expression(v, 2, 10);
-			assert.same(e..'', '10 + 2*5');
+			assert.same(tostring(e), '10 + 2*5');
 
 			e:setVariable(c.Variable({ name = 'b', value = 2 }), 4);
-			assert.same(e..'', '10 + 2*5 + 4*2');
+			assert.same(tostring(e), '10 + 2*5 + 4*2');
 		end);
 
 		it('equals', function ()
@@ -329,29 +329,29 @@ assert = require("luassert")
 			local x = c.Variable({ name = 'x', value = 167 })
 			local y = c.Variable({ name = 'y', value = 10 })
 
-			assert.same(c.plus(2, 3)..'', '5');
-			assert.same(c.plus(x, 2)..'', '2 + 1*167');
-			assert.same(c.plus(3, x)..'', '3 + 1*167');
-			assert.same(c.plus(x, y)..'', '1*167 + 1*10');
+			assert.same(tostring(c.plus(2, 3)), '5');
+			assert.same(tostring(c.plus(x, 2)), '2 + 1*167');
+			assert.same(tostring(c.plus(3, x)), '3 + 1*167');
+			assert.same(tostring(c.plus(x, y)), '1*167 + 1*10');
 		end);
 
 		it('minus', function ()
 			local x = c.Variable({ name = 'x', value = 167 })
 			local y = c.Variable({ name = 'y', value = 10 })
 
-			assert.same(c.minus(2, 3)..'', '-1');
-			assert.same(c.minus(x, 2)..'', '-2 + 1*167');
-			assert.same(c.minus(3, x)..'', '3 + -1*167');
-			assert.same(c.minus(x, y)..'', '1*167 + -1*10');
+			assert.same(tostring(c.minus(2, 3)), '-1');
+			assert.same(tostring(c.minus(x, 2)), '-2 + 1*167');
+			assert.same(tostring(c.minus(3, x)), '3 + -1*167');
+			assert.same(tostring(c.minus(x, y)), '1*167 + -1*10');
 		end);
 
 		it('times', function ()
 			local x = c.Variable({ name = 'x', value = 167 })
 			local y = c.Variable({ name = 'y', value = 10 })
 
-			assert.same(c.times(2, 3)..'', '6');
-			assert.same(c.times(x, 2)..'', '2*167');
-			assert.same(c.times(3, x)..'', '3*167');
+			assert.same(tostring(c.times(2, 3)), '6');
+			assert.same(tostring(c.times(x, 2)), '2*167');
+			assert.same(tostring(c.times(3, x)), '3*167');
 			assert.has_error(function () c.times(c, x, y) end);
 		end);
 
@@ -359,8 +359,8 @@ assert = require("luassert")
 			local x = c.Variable({ name = 'x', value = 167 })
 			local y = c.Variable({ name = 'y', value = 10 })
 
-			assert.same(c.divide(4, 2)..'', '2');
-			assert.same(c.divide(x, 2)..'', '0.5*167');
+			assert.same(tostring(c.divide(4, 2)), '2');
+			assert.same(tostring(c.divide(x, 2)), '0.5*167');
 			assert.has_error(function () c.divide(c, 4, x) end);
 			assert.has_error(function () c.divide(c, x, y) end);
 		end);

@@ -8,7 +8,7 @@ assert = require("luassert")
 			end)
 
 			it('has sane properties', function () 
-				local tab = c.Tableau {}
+				local tab = c.Tableau ()
 				assert.is.same(0, #(tab.columns));
 				assert.is.same(0, #(tab.rows));
 				assert.is.same(0, #(tab.infeasibleRows));
