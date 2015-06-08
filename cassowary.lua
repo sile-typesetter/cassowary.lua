@@ -936,7 +936,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
       end
       self:pivot(e:anyPivotableVariable(), av)
     end
-    assert(not self.rows[ev])
+    assert(not self.rows[av])
     self:removeColumn(av)
     self:removeRow(az)
   end,
