@@ -32,7 +32,7 @@ cassowary = {
   exprFromVarOrValue = function (v)
     if type(v)=="number" then
       return cassowary.Expression.fromConstant(v)
-    elseif v:prototype() == "Expression" then
+    elseif v:type() == "Expression" then
       return v
     elseif type(v)=="table" then
       return cassowary.Expression.fromVariable(v)
@@ -137,7 +137,7 @@ cassowary.Strength = Object {
   _type = "Strength",
   _init = function ( self, name, w1, w2, w3 )
     self.name = name
-    if (type(w1) == "table" and a.prototype and a:prototype() == "SymbolicWeight") then
+    if (type(w1) == "table" and a.type and a:type() == "SymbolicWeight") then
       self.symbolicWeight = w1
     else
       self.symbolicWeight = cassowary.SymbolicWeight { w1; w2; w3 }
@@ -182,7 +182,7 @@ cassowary.Tableau = Object {
     local specializer = {}
     local newObject
     local args = {...}
-    if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
+    if args[1] and type(args[1]) == "table" and not args[1].type then -- I am inheriting
       specializer = table.remove(args,1)
       newObject = Object.mapfields(self,specializer)
     else -- I am instantiating
@@ -324,24 +324,24 @@ cassowary.Expression = Object {
     end
   end,
   plus = function(self, x)
-    if x:prototype() == "Expression" then return (self:clone()):addExpression(x, 1)
-    elseif x:prototype() == "AbstractVariable" then return (self:clone()):addVariable(x,1)
+    if x:type() == "Expression" then return (self:clone()):addExpression(x, 1)
+    elseif x:type() == "AbstractVariable" then return (self:clone()):addVariable(x,1)
     end
   end,
   minus = function(self, x)
-    if x:prototype() == "Expression" then return (self:clone()):addExpression(x, -1)
-    elseif x:prototype() == "AbstractVariable" then return (self:clone()):addVariable(x,-1)
+    if x:type() == "Expression" then return (self:clone()):addExpression(x, -1)
+    elseif x:type() == "AbstractVariable" then return (self:clone()):addVariable(x,-1)
     end
   end,
   divide = function(self, x)
     if type(x) == "number" then 
       if cassowary.approx(x,0) then error(cassowary.NonExpression) else return self:times(1/x) end
-    elseif x:prototype() == "Expression" then
+    elseif x:type() == "Expression" then
       if not x:isConstant() then error(cassowary.NonExpression) else return self:times(1/x.constant) end
     end
   end,
   addExpression = function (self, expr, n, subject, solver)
-    if expr:prototype() == "AbstractVariable" then expr = cassowary.Expression.fromVariable(expr) end
+    if expr:type() == "AbstractVariable" then expr = cassowary.Expression.fromVariable(expr) end
     n = type(n) == "number" and n or 1
     self.constant = self.constant + (n * expr.constant)
     for clv,coeff in pairs(expr.terms) do
@@ -425,7 +425,7 @@ cassowary.Expression = Object {
   end,
   equals = function (self, other)
     if self == other then return true end
-    if not (other:prototype() == "Expression" and other.constant == self.constant) then return false end
+    if not (other:type() == "Expression" and other.constant == self.constant) then return false end
     -- This is wasteful but I am lazy and lua is fast and most expressions are small
     for k,v in pairs(self.terms) do
       if not (other.terms[k] == v) then return false end
@@ -475,7 +475,7 @@ cassowary.AbstractConstraint = Object {
     local specializer = {}
     local newObject
     local args = {...}
-    if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
+    if args[1] and type(args[1]) == "table" and not args[1].type then -- I am inheriting
       specializer = table.remove(args,1)
       newObject = Object.mapfields(self,specializer)
     else -- I am instantiating
@@ -528,7 +528,7 @@ cassowary.Inequality = cassowary.Constraint {
   initializer = function (self, a1, a2, a3, a4, a5)  
     -- This disgusting mess copied from slightyoff's disgusting mess
     -- (cle || number), op, cv
-    if (type(a1) == "number" or a1:prototype() == "Expression") and type(a3) == "table" and a3:prototype() == "AbstractVariable" then
+    if (type(a1) == "number" or a1:type() == "Expression") and type(a3) == "table" and a3:type() == "AbstractVariable" then
       local cle, op, cv, strength, weight = a1, a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
       if op == "<=" then
@@ -540,7 +540,7 @@ cassowary.Inequality = cassowary.Constraint {
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
     -- cv, op, (cle || number)
-    elseif type(a1) == "table" and a1:prototype() == "AbstractVariable" and a3 and (type(a3) == "number" or a3:prototype() == "Expression") then
+    elseif type(a1) == "table" and a1:type() == "AbstractVariable" and a3 and (type(a3) == "number" or a3:type() == "Expression") then
       local cle, op, cv, strength, weight = a3,a2,a1,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
       if op == ">=" then -- a switch!
@@ -552,7 +552,7 @@ cassowary.Inequality = cassowary.Constraint {
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
     -- cle, op, num  
-    elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "number" then
+    elseif type(a1) == "table" and a1:type() == "Expression" and type(a3) == "number" then
       -- I feel like I'm writing Java
       local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
@@ -565,7 +565,7 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
-    elseif type(a1) == "number" and type(a3) == "table" and a3:prototype() == "Expression" then
+    elseif type(a1) == "number" and type(a3) == "table" and a3:type() == "Expression" then
       -- Polymorphism makes a lot of sense in strongly-typed languages
       local cle1, op, cle2, strength, weight = a3,a2,a1,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
@@ -577,7 +577,7 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
-    elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "table" and a3:prototype() == "Expression" then
+    elseif type(a1) == "table" and a1:type() == "Expression" and type(a3) == "table" and a3:type() == "Expression" then
       -- but in weakly-typed languages it really doesn't gain you anything.
       local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle2), strength, weight)
@@ -589,7 +589,7 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
-    elseif type(a1) == "table" and a1:prototype() == "Expression" then
+    elseif type(a1) == "table" and a1:type() == "Expression" then
       self = cassowary.Constraint.initializer(self, a1, a2, a3)
     elseif a2 == ">=" then
       self = cassowary.Constraint.initializer(self, cassowary.Expression(a3), a4, a5)
@@ -612,10 +612,10 @@ cassowary.Inequality = cassowary.Constraint {
 cassowary.Equation = cassowary.Constraint {
   _type = "Equation",
   initializer = function (self, a1, a2, a3, a4)
-    local isExpression   = function(f) return (type(f)=="table" and f:prototype() == "Expression") end
-    local isVariable     = function(f) return (type(f)=="table" and f:prototype() == "AbstractVariable") end
+    local isExpression   = function(f) return (type(f)=="table" and f:type() == "Expression") end
+    local isVariable     = function(f) return (type(f)=="table" and f:type() == "AbstractVariable") end
     local isNumber       = function(f) return (type(f)=="number") end
-    if (isExpression(a1) and not a2 or type(a2) == "table" and a2:prototype() == "Strength") then
+    if (isExpression(a1) and not a2 or type(a2) == "table" and a2:type() == "Strength") then
       self = cassowary.Constraint.initializer(self, a1, a2, a3)
     elseif isVariable(a1) and isExpression(a2) then
       local cv,cle,strength,weight = a1,a2,a3,a4
@@ -638,7 +638,7 @@ cassowary.Equation = cassowary.Constraint {
     else
       error("Bad initializer to Equation")
     end
-    assert(self.strength:prototype() == "Strength")
+    assert(self.strength:type() == "Strength")
     return self
     end,
   __tostring = function(self) return _constraintStringify(self) .. " = 0" end   
@@ -650,7 +650,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local specializer = {}
     local newObject
     local args = {...}
-    if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
+    if args[1] and type(args[1]) == "table" and not args[1].type then -- I am inheriting
       specializer = table.remove(args,1)
       newObject = Object.mapfields(self,specializer)
     else -- I am instantiating
