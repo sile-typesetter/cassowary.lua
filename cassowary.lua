@@ -1,6 +1,5 @@
 local epsilon = 1e-8
 local count = 2
-local std = require("std")
 
 if not unpack then -- Lua 5.3!
   function unpack (t, i)
@@ -37,7 +36,7 @@ cassowary = {
   exprFromVarOrValue = function (v)
     if type(v)=="number" then
       return cassowary.Expression.fromConstant(v)
-    elseif v:prototype() == "Expression" then
+    elseif v._type == "Expression" then
       return v
     elseif type(v)=="table" then
       return cassowary.Expression.fromVariable(v)
@@ -71,10 +70,14 @@ cassowary = {
   end
 }
 
-local object = require "std.object"
-local Object = object { }
+local class = require("pl/class")
+local tx = require("pl.tablex")
+inherit = function(c1, c2)
+  return class(tx.union(c1,c2))
+end
+local pretty = require("pl.pretty")
 
-cassowary.AbstractVariable = Object {
+cassowary.AbstractVariable = class {
   varnameprefix = "",
   prefix = "",
   name = "",
@@ -84,11 +87,12 @@ cassowary.AbstractVariable = Object {
   isPivotable = false,
   isRestricted = false,
   _type = "AbstractVariable",
-  _init = function (self,t)
+  _init = function(self,t) self:initializer(t) end,
+  initializer = function (self,t)
     self.hashcode = cassowary.gensym()
     self.name = self.varnameprefix .. self.hashcode
     if t then
-      return std.table.merge(self, t)
+      tx.update(self, t)
     else
       return self
     end
@@ -96,36 +100,36 @@ cassowary.AbstractVariable = Object {
   __tostring = function (self) return self.prefix .. "[" .. self.name .. ":" .. self.value .. "]" end
 }
 
-cassowary.Variable = cassowary.AbstractVariable {
+cassowary.Variable = inherit(cassowary.AbstractVariable, {
   varnameprefix = "v",
   _type = "Variable",
   isExternal = true
-}
+})
 
-cassowary.DummyVariable = cassowary.AbstractVariable {
+cassowary.DummyVariable = inherit(cassowary.AbstractVariable, {
   varnameprefix = "d",
   _type = "DummyVariable",
   isDummy = true,
   isRestricted = true,
   value = "dummy"
-}
+})
 
-cassowary.ObjectiveVariable = cassowary.AbstractVariable {
+cassowary.ObjectiveVariable = inherit(cassowary.AbstractVariable, {
   varnameprefix = "o",
   _type = "ObjectiveVariable",
   value = "obj"
-}
+})
 
-cassowary.SlackVariable = cassowary.AbstractVariable {
+cassowary.SlackVariable = inherit(cassowary.AbstractVariable, {
   varnameprefix = "s",
   _type = "SlackVariable",
   value = "slack",
   isPivotable = true,
   isRestricted = true
-}
+})
 
 local _multiplier = 1000
-cassowary.SymbolicWeight = Object {
+cassowary.SymbolicWeight = class {
   _type = "SymbolicWeight",
   _init = function ( self, coefficients )
     self.value = 0
@@ -138,11 +142,11 @@ cassowary.SymbolicWeight = Object {
   end
 }
 
-cassowary.Strength = Object {
+cassowary.Strength = class {
   _type = "Strength",
   _init = function ( self, name, w1, w2, w3 )
     self.name = name
-    if (type(w1) == "table" and a.prototype and a:prototype() == "SymbolicWeight") then
+    if (type(w1) == "table" and a.prototype and a._type == "SymbolicWeight") then
       self.symbolicWeight = w1
     else
       self.symbolicWeight = cassowary.SymbolicWeight { w1; w2; w3 }
@@ -158,44 +162,31 @@ cassowary.Strength.strong = cassowary.Strength("strong", 1, 0, 0)
 cassowary.Strength.medium = cassowary.Strength("medium", 0, 1, 0)
 cassowary.Strength.weak = cassowary.Strength("weak", 0, 0, 1)
 
-cassowary.EditInfo = Object {_type = "EditInfo"}
+cassowary.EditInfo = class {_type = "EditInfo",
+__tostring = function(self)
+  s = "EditInfo:"
+end}
 
-cassowary.Error = Object { _type = "Error", description = "An error has occured in Cassowary" }
-cassowary.ConstraintError = cassowary.Error { _type = "ConstraintError", description = "Tried to remove a constraint never added to the tableau" }
-cassowary.InternalError   = cassowary.Error { _type = "InternalError" }
-cassowary.NonExpression   = cassowary.Error { _type = "NonExpression", description = "The resulting expression would be non" }
-cassowary.NotEnoughStays  = cassowary.Error { _type = "NotEnoughStays", description = "There are not enough stays to give specific values to every variable" }
-cassowary.RequiredFailure = cassowary.Error { _type = "RequiredFailure", description = "A required constraint cannot be satisfied" }
-cassowary.TooDifficult    = cassowary.Error { _type = "TooDifficult", description = "The constraints are too difficult to solve" }
+cassowary.Error = class {
+_type = "Error", description = "An error has occured in Cassowary",
+__tostring = function (self) return self._type..": "..self.description end
+}
+cassowary.ConstraintError = inherit(cassowary.Error, { _type = "ConstraintError", description = "Tried to remove a constraint never added to the tableau" })
+cassowary.InternalError   = inherit(cassowary.Error, { _type = "InternalError" })
+cassowary.NonExpression   = inherit(cassowary.Error, { _type = "NonExpression", description = "The resulting expression would be non" })
+cassowary.NotEnoughStays  = inherit(cassowary.Error, { _type = "NotEnoughStays", description = "There are not enough stays to give specific values to every variable" })
+cassowary.RequiredFailure = inherit(cassowary.Error, { _type = "RequiredFailure", description = "A required constraint cannot be satisfied" })
+cassowary.TooDifficult    = inherit(cassowary.Error, { _type = "TooDifficult", description = "The constraints are too difficult to solve" })
 
-local Set = require("std.set")
-
-local SetSize = function (set)
-  local c = 0
-  for _ in Set.elems(set) do c = c + 1 end
-  return c
-end
+local Set = require("pl.Set")
 
 local SetFirst = function(set)
-  local iter = Set.elems(set)
-  return iter(set)
+  return Set.values(set)[1]
 end
 
-cassowary.Tableau = Object {
+cassowary.Tableau = class {
   _type = "Tableau",
-  _init = function(self, ...)
-    local specializer = {}
-    local newObject
-    local args = {...}
-    if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
-      specializer = table.remove(args,1)
-      newObject = Object.mapfields(self,specializer)
-    else -- I am instantiating
-      newObject = Object.mapfields(self,{})
-      newObject:initializer(unpack(args))
-    end
-    return newObject
-  end,  
+  _init = function(self) self:initializer() end,
   initializer =  function(self)
     self.columns = {}
     self.rows = {}
@@ -207,7 +198,8 @@ cassowary.Tableau = Object {
   noteRemovedVariable = function(self, v, subject)
     if cassowary.trace then print("c.Tableau::noteRemovedVariable: ", v, subject) end
     local column = self.columns[v]
-    if (subject and column) then column[subject] = nil end
+    if (subject and column) then column = column - subject end
+    self.columns[v] = column
   end,
   noteAddedVariable = function(self, v, subject)
     if subject then self:insertColVar(v,subject) end
@@ -219,16 +211,17 @@ cassowary.Tableau = Object {
       rowset = Set {}
       self.columns[paramVar] = rowset
     end
-    Set.insert(rowset, rowvar)
+    rowset = rowset + rowvar
+    self.columns[paramVar] = rowset
   end,
   addRow = function (self, aVar, expr)
     cassowary:traceFnEnterPrint("addRow: "..tostring(aVar)..", "..tostring(expr))
     self.rows[aVar] = expr
     for clv,coeff in pairs(expr.terms) do 
       self:insertColVar(clv, aVar)
-      if clv.isExternal then Set.insert(self.externalParametricVars, clv) end
+      if clv.isExternal then self.externalParametricVars = self.externalParametricVars + clv end
     end
-    if aVar.isExternal then Set.insert(self.externalRows, aVar) end
+    if aVar.isExternal then self.externalRows = self.externalRows + aVar end
     -- cassowary:tracePrint(self.."")
   end,
   removeColumn = function (self, aVar)
@@ -236,7 +229,7 @@ cassowary.Tableau = Object {
     local rows = self.columns[aVar]
     if rows then
       self.columns[aVar] = nil
-      for clv in Set.elems(rows) do
+      for clv in Set.values(rows):iter() do
         local expr = self.rows[clv]
         expr.terms[aVar] = nil
       end
@@ -244,23 +237,24 @@ cassowary.Tableau = Object {
       --print("Could not find "..aVar.." in columns")
     end
     if aVar.isExternal then
-      Set.delete(self.externalRows, aVar)
-      Set.delete(self.externalParametricVars, aVar)
+      self.externalRows = self.externalRows - aVar
+      self.externalParametricVars = self.externalParametricVars - aVar
     end
   end,
   removeRow = function (self, aVar)
     cassowary:traceFnEnterPrint("removeRow: "..tostring(aVar) )
     local expr = self.rows[aVar]
     assert(expr)
-    for clv,coeff in pairs(expr.terms) do 
+    for clv,coeff in pairs(expr.terms) do
       local varset = self.columns[clv]
       if varset then
-        Set.delete(varset, aVar)
+        varset = varset - aVar
       end
-    end    
-    Set.delete(self.infeasibleRows, aVar)
+      self.columns[clv] = varset
+    end
+    self.infeasibleRows = self.infeasibleRows - aVar
     if aVar.isExternal then
-      Set.delete(self.externalRows, aVar)
+      self.externalRows = self.externalRows - aVar
     end
     self.rows[aVar] = nil
     cassowary:traceFnExitPrint("returning "..tostring(expr) )
@@ -272,17 +266,17 @@ cassowary.Tableau = Object {
     end
 
     local varset = self.columns[oldVar]
-    for v in Set.elems(varset) do
+    for v in Set.values(varset):iter() do
       local row = self.rows[v]
       row:substituteOut(oldVar, expr, v, self)
       if v.isRestricted and row.constant < 0 then
-        Set.insert(self.infeasibleRows, v)
+        self.infeasibleRows = self.infeasibleRows + v
       end
     end
 
     if oldVar.isExternal then 
-      Set.insert(self.externalRows, oldVar)
-      Set.delete(self.externalParametricVars, oldVar)
+      self.externalRows = self.externalRows + oldVar
+      self.externalParametricVars = self.externalParametricVars - oldVar
     end
 
     self.columns[oldVar] = nil
@@ -292,7 +286,7 @@ cassowary.Tableau = Object {
   end
 }
 
-cassowary.Expression = Object { 
+cassowary.Expression = class {
   _type = "Expression",
   _init = function(self, cvar, value, constant)
     self.hashcode = cassowary.gensym()
@@ -306,12 +300,12 @@ cassowary.Expression = Object {
   end,
   initializeFromTable = function(self, constant, terms)
     self.constant = constant
-    self.terms = std.table.clone(terms)
+    self.terms = tx.deepcopy(terms)
     return self
   end,
   multiplyMe = function(self, x)
     self.constant = self.constant * x
-    for clv,coeff in pairs(self.terms) do 
+    for clv,coeff in pairs(self.terms) do
       self.terms[clv] = coeff * x
     end
     return self
@@ -329,24 +323,24 @@ cassowary.Expression = Object {
     end
   end,
   plus = function(self, x)
-    if x:prototype() == "Expression" then return (self:clone()):addExpression(x, 1)
-    elseif x:prototype() == "AbstractVariable" then return (self:clone()):addVariable(x,1)
+    if x._type == "Expression" then return (self:clone()):addExpression(x, 1)
+    elseif x._type:match("Variable") then return (self:clone()):addVariable(x,1)
     end
   end,
   minus = function(self, x)
-    if x:prototype() == "Expression" then return (self:clone()):addExpression(x, -1)
-    elseif x:prototype() == "AbstractVariable" then return (self:clone()):addVariable(x,-1)
+    if x._type == "Expression" then return (self:clone()):addExpression(x, -1)
+    elseif x._type:match("Variable") then return (self:clone()):addVariable(x,-1)
     end
   end,
   divide = function(self, x)
     if type(x) == "number" then 
       if cassowary.approx(x,0) then error(cassowary.NonExpression) else return self:times(1/x) end
-    elseif x:prototype() == "Expression" then
+    elseif x._type == "Expression" then
       if not x:isConstant() then error(cassowary.NonExpression) else return self:times(1/x.constant) end
     end
   end,
   addExpression = function (self, expr, n, subject, solver)
-    if expr:prototype() == "AbstractVariable" then expr = cassowary.Expression.fromVariable(expr) end
+    if expr._type:match("Variable") then expr = cassowary.Expression.fromVariable(expr) end
     n = type(n) == "number" and n or 1
     self.constant = self.constant + (n * expr.constant)
     for clv,coeff in pairs(expr.terms) do
@@ -430,7 +424,7 @@ cassowary.Expression = Object {
   end,
   equals = function (self, other)
     if self == other then return true end
-    if not (other:prototype() == "Expression" and other.constant == self.constant) then return false end
+    if not (other._type == "Expression" and other.constant == self.constant) then return false end
     -- This is wasteful but I am lazy and lua is fast and most expressions are small
     for k,v in pairs(self.terms) do
       if not (other.terms[k] == v) then return false end
@@ -464,59 +458,47 @@ cassowary.Expression = Object {
 
 local _constraintStringify = function (self) return tostring(self.strength) .. " {" .. tostring(self.weight) .. "} (" .. tostring(self.expression) .. ")" end
 
-local abcon_init = function (self, strength, weight)
+local abconinitializer = function (self, strength, weight)
     self.hashcode = cassowary.gensym()
     self.strength = strength or cassowary.Strength.required
     self.weight = (not weight or weight == 0) and 1 or weight
     return self
   end
 
-cassowary.AbstractConstraint = Object {
+cassowary.AbstractConstraint = class {
   _type = "AbstractConstraint",
   isEditConstraint = false,
   isInequality = false,
   isStayConstraint = false,
-  _init = function(self, ...)
-    local specializer = {}
-    local newObject
-    local args = {...}
-    if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
-      specializer = table.remove(args,1)
-      newObject = Object.mapfields(self,specializer)
-    else -- I am instantiating
-      newObject = Object.mapfields(self,{})
-      newObject:initializer(unpack(args))
-    end
-    return newObject
-  end,
-  initializer = abcon_init,
+  _init = function(self,...) self:initializer(unpack({...})) end,
+  initializer = abconinitializer,
   required = function (self) return self.strength == cassowary.Strength.required end,
   __tostring = _constraintStringify
 }
 
 local _editStayInit = function (self, cv, strength, weight)
-  self = abcon_init(self, strength,weight)
+  self = abconinitializer(self, strength,weight)
   self.variable = cv
   self.expression = cassowary.Expression(cv, -1, cv.value)
   return self
 end
 
 
-cassowary.EditConstraint = cassowary.AbstractConstraint {
+cassowary.EditConstraint = inherit(cassowary.AbstractConstraint, {
   _type = "EditConstraint",
   isEditConstraint = true,
   initializer = _editStayInit,
   __tostring = function (self) return "edit: ".._constraintStringify(self) end
-}
+})
 
-cassowary.StayConstraint = cassowary.AbstractConstraint {
+cassowary.StayConstraint = inherit(cassowary.AbstractConstraint, {
   _type = "StayConstraint",
   isStayConstraint = true,
   initializer = _editStayInit,
   __tostring = function (self) return "stay: ".._constraintStringify(self) end
-}
+})
 
-cassowary.Constraint = cassowary.AbstractConstraint({
+cassowary.Constraint = inherit(cassowary.AbstractConstraint, {
   _type = "Constraint",
   initializer = function (self, cle, strength, weight)
     self = cassowary.AbstractConstraint.initializer(self, strength, weight)
@@ -525,15 +507,15 @@ cassowary.Constraint = cassowary.AbstractConstraint({
   end,
 })
 
-cassowary.Inequality = cassowary.Constraint {
+cassowary.Inequality = inherit(cassowary.Constraint, {
   _type = "Inequality",
   cloneOrNewCle = function (self, cle)
     if type(cle)=="table" and cle.clone then return cle:clone() else return cassowary.Expression(cle) end
   end,
-  initializer = function (self, a1, a2, a3, a4, a5)  
+  _init = function (self, a1, a2, a3, a4, a5)
     -- This disgusting mess copied from slightyoff's disgusting mess
     -- (cle || number), op, cv
-    if (type(a1) == "number" or a1:prototype() == "Expression") and type(a3) == "table" and a3:prototype() == "AbstractVariable" then
+    if (type(a1) == "number" or a1._type == "Expression") and type(a3) == "table" and a3._type:match("Variable") then
       local cle, op, cv, strength, weight = a1, a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
       if op == "<=" then
@@ -545,7 +527,7 @@ cassowary.Inequality = cassowary.Constraint {
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
     -- cv, op, (cle || number)
-    elseif type(a1) == "table" and a1:prototype() == "AbstractVariable" and a3 and (type(a3) == "number" or a3:prototype() == "Expression") then
+    elseif type(a1) == "table" and a1._type:match("Variable") and a3 and (type(a3) == "number" or a3._type == "Expression") then
       local cle, op, cv, strength, weight = a3,a2,a1,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
       if op == ">=" then -- a switch!
@@ -557,7 +539,7 @@ cassowary.Inequality = cassowary.Constraint {
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
     -- cle, op, num  
-    elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "number" then
+    elseif type(a1) == "table" and a1._type == "Expression" and type(a3) == "number" then
       -- I feel like I'm writing Java
       local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
@@ -570,7 +552,7 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
-    elseif type(a1) == "number" and type(a3) == "table" and a3:prototype() == "Expression" then
+    elseif type(a1) == "number" and type(a3) == "table" and a3._type == "Expression" then
       -- Polymorphism makes a lot of sense in strongly-typed languages
       local cle1, op, cle2, strength, weight = a3,a2,a1,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
@@ -582,7 +564,7 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
-    elseif type(a1) == "table" and a1:prototype() == "Expression" and type(a3) == "table" and a3:prototype() == "Expression" then
+    elseif type(a1) == "table" and a1._type == "Expression" and type(a3) == "table" and a3._type == "Expression" then
       -- but in weakly-typed languages it really doesn't gain you anything.
       local cle1, op, cle2, strength, weight = a1,a2,a3,a4,a5
       self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle2), strength, weight)
@@ -594,7 +576,7 @@ cassowary.Inequality = cassowary.Constraint {
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
-    elseif type(a1) == "table" and a1:prototype() == "Expression" then
+    elseif type(a1) == "table" and a1._type == "Expression" then
       self = cassowary.Constraint.initializer(self, a1, a2, a3)
     elseif a2 == ">=" then
       self = cassowary.Constraint.initializer(self, cassowary.Expression(a3), a4, a5)
@@ -606,21 +588,22 @@ cassowary.Inequality = cassowary.Constraint {
     else
       error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
     end
+    assert(self.expression)
     return self
   end,
   isInequality = true,
   __tostring = function (self)
     return _constraintStringify(self) .. " >= 0) id: ".. self.hashcode
   end
-}
+})
 
-cassowary.Equation = cassowary.Constraint {
+cassowary.Equation = inherit(cassowary.Constraint, {
   _type = "Equation",
-  initializer = function (self, a1, a2, a3, a4)
-    local isExpression   = function(f) return (type(f)=="table" and f:prototype() == "Expression") end
-    local isVariable     = function(f) return (type(f)=="table" and f:prototype() == "AbstractVariable") end
+  _init = function (self, a1, a2, a3, a4)
+    local isExpression   = function(f) return (type(f)=="table" and f._type == "Expression") end
+    local isVariable     = function(f) return (type(f)=="table" and f._type:match("Variable")) end
     local isNumber       = function(f) return (type(f)=="number") end
-    if (isExpression(a1) and not a2 or type(a2) == "table" and a2:prototype() == "Strength") then
+    if (isExpression(a1) and not a2 or type(a2) == "table" and a2._type == "Strength") then
       self = cassowary.Constraint.initializer(self, a1, a2, a3)
     elseif isVariable(a1) and isExpression(a2) then
       local cv,cle,strength,weight = a1,a2,a3,a4
@@ -643,29 +626,16 @@ cassowary.Equation = cassowary.Constraint {
     else
       error("Bad initializer to Equation")
     end
-    assert(self.strength:prototype() == "Strength")
+    assert(self.strength._type == "Strength")
     return self
     end,
   __tostring = function(self) return _constraintStringify(self) .. " = 0" end   
-}
+})
 
-cassowary.SimplexSolver = cassowary.Tableau {
+cassowary.SimplexSolver = inherit(cassowary.Tableau, {
   _type = "SimplexSolver",
-  _init = function(self, ...)
-    local specializer = {}
-    local newObject
-    local args = {...}
-    if args[1] and type(args[1]) == "table" and not args[1].prototype then -- I am inheriting
-      specializer = table.remove(args,1)
-      newObject = Object.mapfields(self,specializer)
-    else -- I am instantiating
-      newObject = Object.mapfields(self,{})
-      newObject:initializer(unpack(args))
-    end
-    return newObject
-  end,  
   initializer = function(self)
-    cassowary.Tableau.initializer(self)
+    self = cassowary.Tableau.initializer(self)
     self.stayMinusErrorVars = {}
     self.stayPlusErrorVars = {}
     self.errorVars = {}
@@ -682,8 +652,9 @@ cassowary.SimplexSolver = cassowary.Tableau {
     self.rows[self.objective] = cassowary.Expression.empty()
     self.editVariableStack = { 0 } -- A stack of *element counts*
     if cassowary.trace then
-      cassowary:tracePrint("objective expr == "..self.rows[self.objective])
+      cassowary:tracePrint("objective expr == "..tostring(self.rows[self.objective]))
     end
+    return self
   end,
   add = function (self, ...)
     local args = {...}
@@ -694,11 +665,11 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local i = 0
     for _ in pairs(self.editVarMap) do i = i + 1 end
     local cvEplus, cvEminus = eplus_eminus[1], eplus_eminus[2]
-    local ei = cassowary.EditInfo { constraint = cn, 
+    local ei = inherit(cassowary.EditInfo, { constraint = cn, 
       editPlus = cvEplus, 
       editMinus = cvEminus, 
       prevEditConstant = prevEConstant, 
-      index = i }
+      index = i })
     self.editVarMap[cn.variable] = ei
     self.editVarList[i+1] = {v = cn.variable, info = ei}
   end,
@@ -779,7 +750,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     cassowary:tracePrint("evars: "..tostring(evars))
 
     if evars then
-      for cv in Set.elems(evars) do
+      for cv in Set.values(evars):iter() do
         local expr = self.rows[cv]
         if not expr then
           zrow:addVariable(cv, -cn.weight * cn.strength.symbolicWeight.value, self.objective, self)
@@ -798,7 +769,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
       --cassowary:tracePrint("Must pivot - cols are "..col)
       local exitVar
       local minRatio = 0
-      for v in Set.elems(col) do
+      for v in Set.values(col):iter() do
         if v.isRestricted then
           local expr = self.rows[v]
           local coeff = expr:coefficientFor(marker)
@@ -816,7 +787,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
       end
       if not exitVar then
         cassowary:tracePrint("Exitvar still null")
-        for v in Set.elems(col) do
+        for v in Set.values(col):iter() do
           if v.isRestricted then
             local expr = self.rows[v]
             local coeff = expr:coefficientFor(marker)
@@ -829,7 +800,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
         end        
       end
       if not exitVar then
-        if #col == 0 then self:removeColumn(marker)
+        if Set.len(col) == 0 then self:removeColumn(marker)
         else
           local i = 1
           while i <= #col and not exitVar do
@@ -858,7 +829,6 @@ cassowary.SimplexSolver = cassowary.Tableau {
       self:removeColumn(cei.editMinus)
       self.editVarMap[cn.variable] = nil
     end
-
     if eVars then self.errorVars[eVars] = nil end
     if self.autoSolve then
       self:optimize(self.objective)
@@ -885,7 +855,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
   resolve = function (self)
     self:dualOptimize()
     self:setExternalVariables()
-    self.infeasibleRows = Set {}  
+    self.infeasibleRows = Set {}
     self:resetStayConstants()
   end,
   suggestValue = function(self, v, x)
@@ -967,7 +937,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
       elseif v.isRestricted then
         if not foundNewRestricted and not v.isDummy and c < 0 then
           local col = self.columns[v]
-          if not col or (SetSize(col) == 1 and self:columnsHasKey(self.objective)) then
+          if not col or (#col == 1 and self:columnsHasKey(self.objective)) then
             subject = v
             foundNewRestricted = true
           end
@@ -1005,34 +975,34 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local exprPlus = self.rows[plusErrorVar]
     if exprPlus then
       exprPlus.constant = exprPlus.constant + delta
-      if exprPlus.constant < 0 then Set.insert(self.infeasibleRows,plusErrorVar) end
+      if exprPlus.constant < 0 then self.infeasibleRows = self.infeasibleRows + plusErrorVar end
       return
     end
 
     local exprMinus = self.rows[minusErrorVar]
     if exprMinus then
       exprMinus.constant = exprMinus.constant - delta
-      if exprMinus.constant < 0 then Set.insert(self.infeasibleRows,minusErrorVar) end
+      if exprMinus.constant < 0 then self.infeasibleRows = self.infeasibleRows + minusErrorVar end
       return
     end
 
     local columnVars = self.columns[minusErrorVar]
     if not columnVars then print("columnVars is null!") end
-    for basicVar in Set.elems(columnVars) do
+    for basicVar in Set.values(columnVars):iter() do
       local expr = self.rows[basicVar]
       local c = expr:coefficientFor(minusErrorVar)
       expr.constant = expr.constant + (c * delta)
       if basicVar.isRestricted and expr.constant < 0 then
-        Set.insert(self.infeasibleRows,basicVar)
+        self.infeasibleRows = self.infeasibleRows + basicVar
       end
     end
   end,
   dualOptimize = function (self)
     cassowary:traceFnEnterPrint("dualOptimize")
     local zRow = self.rows[self.objective]
-    while SetSize(self.infeasibleRows) > 0 do
+    while Set.len(self.infeasibleRows) > 0 do
       local exitVar = SetFirst(self.infeasibleRows)
-      Set.delete(self.infeasibleRows, exitVar)
+      self.infeasibleRows = self.infeasibleRows - exitVar
       local entryVar = nil
       expr = self.rows[exitVar]
       if expr and expr.constant < 0 then
@@ -1136,7 +1106,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
     local zRow = self.rows[zVar]
     assert(zRow)
     local entryVar, exitVar, objectiveCoeff, terms
-    while true do 
+    while true do
       objectiveCoeff = 0
       terms = zRow.terms
       for v,c in pairs(terms) do
@@ -1147,15 +1117,12 @@ cassowary.SimplexSolver = cassowary.Tableau {
         end
       end
       cassowary:tracePrint("entryVar: "..tostring(entryVar).." objectiveCoeff: "..tostring(objectiveCoeff))
-
       if objectiveCoeff >= -epsilon then return end
-
 
       local minRatio = 2^64
       local columnVars = self.columns[entryVar]
       local r = 0
-
-      for v in Set.elems(columnVars) do
+      for v in Set.values(columnVars):iter() do
         cassowary:tracePrint("Checking "..tostring(v))
         if v.isPivotable then
           local expr = self.rows[v]
@@ -1171,7 +1138,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
         end
       end
 
-      if minRatio == 2^64 then 
+      if minRatio == 2^64 then
         error(cassowary.InternalError { description = "Objective function is unbounded in optimize"})
       end
       self:pivot(entryVar, exitVar)
@@ -1199,7 +1166,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
   setExternalVariables = function(self)
     cassowary:tracePrint("setExternalVariables")
     local changed = {}
-    for v in Set.elems(self.externalParametricVars) do
+    for v in Set.values(self.externalParametricVars):iter() do
       if self.rows[v] then
         cassowary:tracePrint("Error: variable" .. tostring(v) .. " in _externalParametricVars is basic")
       else
@@ -1208,7 +1175,7 @@ cassowary.SimplexSolver = cassowary.Tableau {
       end
     end
 
-    for v in Set.elems(self.externalRows) do
+    for v in Set.values(self.externalRows):iter() do
       local expr = self.rows[v]
       if not (v.value == expr.constant) then
         v.value = expr.constant
@@ -1229,8 +1196,25 @@ cassowary.SimplexSolver = cassowary.Tableau {
       constraintSet = Set {}
       self.errorVars[cn] = constraintSet
     end
-    Set.insert(constraintSet, aVar)
+    constraintSet = constraintSet + aVar
+    self.errorVars[cn] = constraintSet
+  end,
+  __tostring = function (self)
+    s = "TABLEAU ROWS\n"
+    for r,v in pairs(self.rows) do
+      s = s .. tostring(r) .. ":\n"
+        for t,t2 in pairs(v.terms) do
+          s = s .. "  " .. tostring(t) .. " : "..tostring(t2).."\n"
+        end
+      s = s .. "\n"
+    end
+    s = s .. "TABLEAU Columns\n"
+    for r,v in pairs(self.columns) do
+      s = s .. tostring(r) .. ":" .. tostring(v).."\n"
+    end
+    return s
+
   end
-}
+})
 
 return cassowary
