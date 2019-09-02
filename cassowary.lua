@@ -1,20 +1,12 @@
 local class = require("pl.class")
 local tablex = require("pl.tablex")
+local unpack = require("pl.utils").unpack
 local Set = require("pl.Set")
 
 local cassowary
 
 local epsilon = 1e-8
 local count = 2
-
-if not unpack then -- Lua 5.3!
-  local function unpack (t, i)
-      i = i or 1
-      if t[i] ~= nil then
-        return t[i], unpack(t, i + 1)
-      end
-  end
-end
 
 local function gPairs (t)
   local a = {}
