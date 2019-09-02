@@ -342,7 +342,7 @@ cassowary.Expression = class {
 
   initializeFromTable = function (self, constant, terms)
     self.constant = constant
-    self.terms = tablex.deepcopy(terms)
+    self.terms = tablex.copy(terms)
     return self
   end,
 
