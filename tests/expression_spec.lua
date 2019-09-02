@@ -5,31 +5,31 @@ describe('cassowary.Expression', function ()
   it('is constructable with 3 variables as arguments', function ()
     local x = cassowary.Variable { name = 'x', value = 167 }
     local e = cassowary.Expression(x, 2, 3)
-    assert.is.same(tostring(e), '3 + 2*167')
+    assert.is.same('3 + 2*167', tostring(e))
   end)
 
   it('is constructable with one parameter', function ()
-    assert.is.same(tostring(cassowary.Expression(4)), '4')
+    assert.is.same('4', tostring(cassowary.Expression(4)))
   end)
 
   it('plus', function ()
     local x1 = cassowary.Variable { name = 'x', value = 167 }
-    assert.same(tostring(cassowary.plus(4, 2)), '6')
-    assert.same(tostring(cassowary.plus(x1, 2)), '2 + 1*167')
-    assert.same(tostring(cassowary.plus(3, x1)), '3 + 1*167')
+    assert.same('6', tostring(cassowary.plus(4, 2)))
+    assert.same('2 + 1*167', tostring(cassowary.plus(x1, 2)))
+    assert.same('3 + 1*167', tostring(cassowary.plus(3, x1)))
   end)
 
-  it('times', function () 
+  it('times', function ()
     local x2 = cassowary.Variable { name= 'x', value= 167 }
-    assert.same(tostring(cassowary.times(x2, 3)), '3*167')
-    assert.same(tostring(cassowary.times(7, x2)), '7*167')
+    assert.same('3*167', tostring(cassowary.times(x2, 3)))
+    assert.same('7*167', tostring(cassowary.times(7, x2)))
   end)
 
   it('complex', function ()
     local x3 = cassowary.Variable { name= 'x', value= 167 }
     local y1 = cassowary.Variable { name= 'y', value= 2 }
     local ex = cassowary.plus(4, cassowary.plus(cassowary.times(x3, 3), cassowary.times(2, y1)))
-    assert.same(tostring(ex), '4 + 3*167 + 2*2')
+    assert.same('4 + 3*167 + 2*2', tostring(ex))
   end)
 
   it('zero_args', function ()
@@ -87,9 +87,9 @@ describe('cassowary.Expression', function ()
     local v = cassowary.Variable({ value = 10 })
     local e = cassowary.Expression(v, 20, 2):multiplyMe(-1)
 
-    assert.same(e.constant, -2)
-    assert.same(v.value, 10)
-    assert.same(e.terms[v], -20)
+    assert.same(-2, e.constant)
+    assert.same(10, v.value)
+    assert.same(-20, e.terms[v])
   end)
 
   it('times', function ()
@@ -98,18 +98,18 @@ describe('cassowary.Expression', function ()
 
     -- times a number
     local e = a:times(10)
-    assert.same(e.constant, 20)
-    assert.same(e.terms[v], 200)
+    assert.same(20, e.constant)
+    assert.same(200, e.terms[v])
 
     -- times a constant exression
     e = a:times(cassowary.Expression(10))
-    assert.same(e.constant, 20)
-    assert.same(e.terms[v], 200)
+    assert.same(20, e.constant)
+    assert.same(200, e.terms[v])
 
     -- constant expression times another expression
     e = cassowary.Expression(10):times(a)
-    assert.same(e.constant, 20)
-    assert.same(e.terms[v], 200)
+    assert.same(20, e.constant)
+    assert.same(200, e.terms[v])
 
     -- multiplying two non-constant expressions
     -- t.e(cassowary.NonExpression, a, 'times', [a])
@@ -122,11 +122,11 @@ describe('cassowary.Expression', function ()
 
     -- implicit coefficient of 1
     a:addVariable(v)
-    assert.same(a.terms[v], 1)
+    assert.same(1, a.terms[v])
 
     -- add again, with different coefficient
     a:addVariable(v, 2)
-    assert.same(a.terms[v], 3)
+    assert.same(3, a.terms[v])
 
     -- add again, with resulting 0 coefficient. should remove the term.
     a:addVariable(v, -3)
@@ -143,7 +143,7 @@ describe('cassowary.Expression', function ()
 
     -- should work just like addVariable
     a:addExpression(v, 2)
-    assert.same(a.terms[v], 2)
+    assert.same(2, a.terms[v])
   end)
 
   it('addExpression', function ()
@@ -154,19 +154,19 @@ describe('cassowary.Expression', function ()
 
     -- different variable and implicit coefficient of 1, should make term
     a:addExpression(cassowary.Expression(vb, 10, 5))
-    assert.same(a.constant, 7)
-    assert.same(a.terms[vb], 10)
+    assert.same(7, a.constant)
+    assert.same(10, a.terms[vb])
 
     -- same variable, should reuse existing term
     a:addExpression(cassowary.Expression(vb, 2, 5))
-    assert.same(a.constant, 12)
-    assert.same(a.terms[vb], 12)
+    assert.same(12, a.constant)
+    assert.same(12, a.terms[vb])
 
     -- another variable and a coefficient,
     -- should multiply the constant and all terms in the expression
     a:addExpression(cassowary.Expression(vc, 1, 2), 2)
-    assert.same(a.constant, 16)
-    assert.same(a.terms[vc], 2)
+    assert.same(16, a.constant)
+    assert.same(2, a.terms[vc])
   end)
 
   it('plus', function ()
@@ -179,9 +179,9 @@ describe('cassowary.Expression', function ()
     assert.is_not.same(a, p)
     assert.is_not.same(a, b)
 
-    assert.same(p.constant, 7)
-    assert.same(p.terms[va], 20)
-    assert.same(p.terms[vb], 10)
+    assert.same(7, p.constant)
+    assert.same(20, p.terms[va])
+    assert.same(10, p.terms[vb])
   end)
 
   it('minus', function ()
@@ -194,9 +194,9 @@ describe('cassowary.Expression', function ()
     assert.is_not.same(a, p)
     assert.is_not.same(a, b)
 
-    assert.same(p.constant, -3)
-    assert.same(p.terms[va], 20)
-    assert.same(p.terms[vb], -10)
+    assert.same(-3, p.constant)
+    assert.same(20, p.terms[va])
+    assert.same(-10, p.terms[vb])
   end)
 
   it('divide', function ()
@@ -208,8 +208,8 @@ describe('cassowary.Expression', function ()
     -- t.e(cassowary.NonExpression, a, 'divide', [0])
 
     local p = a:divide(2)
-    assert.same(p.constant, 1)
-    assert.same(p.terms[va], 10)
+    assert.same(1, p.constant)
+    assert.same(10, p.terms[va])
 
     assert.has_error(function() a.divide(a, cassowary.Expression(vb, 10, 5)) end)
     -- t.e(cassowary.NonExpression, a, 'divide', [cassowary.Expression(vb, 10, 5)])
@@ -217,8 +217,8 @@ describe('cassowary.Expression', function ()
     assert.has_error(function() ne.divide(ne, a) end)
 
     p = a:divide(cassowary.Expression(2))
-    assert.same(p.constant, 1)
-    assert.same(p.terms[va], 10)
+    assert.same(1, p.constant)
+    assert.same(10, p.terms[va])
   end)
 
   it('coefficientFor', function ()
@@ -226,8 +226,8 @@ describe('cassowary.Expression', function ()
     local vb = cassowary.Variable({ value = 20 })
     local a = cassowary.Expression(va, 20, 2)
 
-    assert.same(a:coefficientFor(va), 20)
-    assert.same(a:coefficientFor(vb), 0)
+    assert.same(20, a:coefficientFor(va))
+    assert.same(0, a:coefficientFor(vb))
   end)
 
   it('setVariable', function ()
@@ -237,11 +237,11 @@ describe('cassowary.Expression', function ()
 
     -- set existing variable
     a:setVariable(va, 2)
-    assert.same(a:coefficientFor(va), 2)
+    assert.same(2, a:coefficientFor(va))
 
     -- set variable
     a:setVariable(vb, 2)
-    assert.same(a:coefficientFor(vb), 2)
+    assert.same(2, a:coefficientFor(vb))
   end)
 
   it('anyPivotableVariable', function ()
@@ -268,25 +268,25 @@ describe('cassowary.Expression', function ()
 
     -- variable
     a:substituteOut(v1, cassowary.Expression(v2, 4, 4))
-    assert.same(a.constant, 10)
+    assert.same(10, a.constant)
     assert.same(nil, a.terms[v1])
-    assert.same(a.terms[v2], 8)
+    assert.same(8, a.terms[v2])
 
     -- existing variable
     a:setVariable(v1, 1)
     a:substituteOut(v2, cassowary.Expression(v1, 2, 2))
 
-    assert.same(a.constant, 26)
+    assert.same(26, a.constant)
     assert.same(null, a.terms[v2])
-    assert.same(a.terms[v1], 17)
+    assert.same(17, a.terms[v1])
   end)
 
   it('newSubject', function ()
     local v = cassowary.Variable({ value = 10 })
     local e = cassowary.Expression(v, 2, 5)
 
-    assert.same(e:newSubject(v), 1 / 2)
-    assert.same(e.constant, -2.5)
+    assert.same(1 / 2, e:newSubject(v))
+    assert.same(-2.5, e.constant)
     assert.same(null, e.terms[v])
     assert.same(true, e:isConstant())
   end)
@@ -297,22 +297,22 @@ describe('cassowary.Expression', function ()
     local e = cassowary.Expression(va, 2, 5)
 
     e:changeSubject(vb, va)
-    assert.same(e.constant, -2.5)
+    assert.same(-2.5, e.constant)
     assert.same(null, e.terms[va])
-    assert.same(e.terms[vb], 0.5)
+    assert.same(0.5, e.terms[vb])
   end)
 
   it('toString', function ()
     local v = cassowary.Variable({ name = 'v', value = 5 })
 
-    assert.same(tostring(cassowary.Expression.fromConstant(10)), '10')
-    assert.same(tostring(cassowary.Expression(v, 0, 10)), '10 + 0*5')
+    assert.same('10', tostring(cassowary.Expression.fromConstant(10)))
+    assert.same('10 + 0*5', tostring(cassowary.Expression(v, 0, 10)))
 
     local e = cassowary.Expression(v, 2, 10)
-    assert.same(tostring(e), '10 + 2*5')
+    assert.same('10 + 2*5', tostring(e))
 
     e:setVariable(cassowary.Variable({ name = 'b', value = 2 }), 4)
-    assert.same(tostring(e), '10 + 2*5 + 4*2')
+    assert.same('10 + 2*5 + 4*2', tostring(e))
   end)
 
   it('equals', function ()
@@ -328,29 +328,29 @@ describe('cassowary.Expression', function ()
     local x = cassowary.Variable({ name = 'x', value = 167 })
     local y = cassowary.Variable({ name = 'y', value = 10 })
 
-    assert.same(tostring(cassowary.plus(2, 3)), '5')
-    assert.same(tostring(cassowary.plus(x, 2)), '2 + 1*167')
-    assert.same(tostring(cassowary.plus(3, x)), '3 + 1*167')
-    assert.same(tostring(cassowary.plus(x, y)), '1*167 + 1*10')
+    assert.same('5', tostring(cassowary.plus(2, 3)))
+    assert.same('2 + 1*167', tostring(cassowary.plus(x, 2)))
+    assert.same('3 + 1*167', tostring(cassowary.plus(3, x)))
+    assert.same('1*167 + 1*10', tostring(cassowary.plus(x, y)))
   end)
 
   it('minus', function ()
     local x = cassowary.Variable({ name = 'x', value = 167 })
     local y = cassowary.Variable({ name = 'y', value = 10 })
 
-    assert.same(tostring(cassowary.minus(2, 3)), '-1')
-    assert.same(tostring(cassowary.minus(x, 2)), '-2 + 1*167')
-    assert.same(tostring(cassowary.minus(3, x)), '3 + -1*167')
-    assert.same(tostring(cassowary.minus(x, y)), '1*167 + -1*10')
+    assert.same('-1', tostring(cassowary.minus(2, 3)))
+    assert.same('-2 + 1*167', tostring(cassowary.minus(x, 2)))
+    assert.same('3 + -1*167', tostring(cassowary.minus(3, x)))
+    assert.same('1*167 + -1*10', tostring(cassowary.minus(x, y)))
   end)
 
   it('times', function ()
     local x = cassowary.Variable({ name = 'x', value = 167 })
     local y = cassowary.Variable({ name = 'y', value = 10 })
 
-    assert.same(tostring(cassowary.times(2, 3)), '6')
-    assert.same(tostring(cassowary.times(x, 2)), '2*167')
-    assert.same(tostring(cassowary.times(3, x)), '3*167')
+    assert.same('6', tostring(cassowary.times(2, 3)))
+    assert.same('2*167', tostring(cassowary.times(x, 2)))
+    assert.same('3*167', tostring(cassowary.times(3, x)))
     assert.has_error(function () cassowary.times(cassowary, x, y) end)
   end)
 
@@ -358,8 +358,8 @@ describe('cassowary.Expression', function ()
     local x = cassowary.Variable({ name = 'x', value = 167 })
     local y = cassowary.Variable({ name = 'y', value = 10 })
 
-    assert.same(tonumber(tostring(cassowary.divide(4, 2))), 2)
-    assert.same(tostring(cassowary.divide(x, 2)), '0.5*167')
+    assert.same(2, tonumber(tostring(cassowary.divide(4, 2))))
+    assert.same('0.5*167', tostring(cassowary.divide(x, 2)))
     --assert.has_error(function () cassowary.divide(cassowary, 4, x) end)
     --assert.has_error(function () cassowary.divide(cassowary, x, y) end)
   end)
