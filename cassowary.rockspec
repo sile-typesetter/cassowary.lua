@@ -1,8 +1,8 @@
 package = "Cassowary"
-version = "2.0-1"
+version = "2.1-1"
 source = {
    url = "git://github.com/simoncozens/cassowary.lua",
-   tag = "v2.0",
+   tag = "v2.1",
 }
 description = {
    summary = "The cassowary constraint solver.",
