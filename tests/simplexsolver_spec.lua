@@ -1,53 +1,50 @@
-c = require("cassowary")
-assert = require("luassert")
+local cassowary = require("cassowary")
 
-  describe('c.SimplexSolver', function ()
-    it('should be constructable without args', function ()
-      assert.is.truthy(c.SimplexSolver())
-    end)
+describe('cassowary.SimplexSolver', function ()
+
+  it('should be constructable without args', function ()
+    assert.is.truthy(cassowary.SimplexSolver())
   end)
 
-  describe("addEditVar", function()
-    it("works with required strength", function()
-      local solver = c.SimplexSolver();
-      local a = c.Variable({name = "a"});
+end)
 
-      solver:addConstraint(c.StayConstraint(a, c.Strength.strong, 0));
-      solver:resolve();
+describe("addEditVar", function ()
 
-      assert.equal(0, a.value);
+  it("works with required strength", function ()
+    local solver = cassowary.SimplexSolver()
+    local a = cassowary.Variable({name = "a"})
+    solver:addConstraint(cassowary.StayConstraint(a, cassowary.Strength.strong, 0))
+    solver:resolve()
+    assert.equal(0, a.value)
+    solver:addEditVar(a, cassowary.Strength.required) :beginEdit() :suggestValue(a, 2) :resolve()
+    assert.is.equal(2, a.value)
+  end)
 
-      solver:addEditVar(a, c.Strength.required) :beginEdit() :suggestValue(a, 2) :resolve();
-      assert.is.equal(2, a.value);
-    end);
-    it("works with required strength after many suggestions", function()
-      local solver = c.SimplexSolver();
-      local a = c.Variable({name = "a"});
-      local b = c.Variable({name = "b"});
+  it("works with required strength after many suggestions", function ()
+    local solver = cassowary.SimplexSolver()
+    local a = cassowary.Variable({name = "a"})
+    local b = cassowary.Variable({name = "b"})
+    solver:addConstraint(cassowary.StayConstraint(a, cassowary.Strength.strong, 0)) :addConstraint(cassowary.Equation(a,b,cassowary.Strength.required)) :resolve()
+    assert.equal(0, b.value)
+    assert.equal(0, a.value)
+    solver:addEditVar(a, cassowary.Strength.required) :beginEdit() :suggestValue(a, 2) :resolve()
+    assert.equal(2, a.value)
+    assert.equal(2, b.value)
+    solver:suggestValue(a, 10):resolve()
+    assert.equal(10, a.value)
+    assert.equal(10, b.value)
+  end)
 
-      solver:addConstraint(c.StayConstraint(a, c.Strength.strong, 0)) :addConstraint(c.Equation(a,b,c.Strength.required)) :resolve();
-      assert.equal(0, b.value);
-      assert.equal(0, a.value);
+  it('works with weight', function ()
+    local x = cassowary.Variable({ name= 'x' })
+    local y = cassowary.Variable({ name= 'y' })
+    local solver = cassowary.SimplexSolver()
+    solver:addStay(x):addStay(y):addConstraint(cassowary.Equation(x, y, cassowary.Strength.required)):addEditVar(x,cassowary.Strength.medium,1)
+    solver:addEditVar(y, cassowary.Strength.medium,10):beginEdit()
+    solver:suggestValue(x, 10):suggestValue(y, 20)
+    solver:resolve()
+    assert.is.truthy(cassowary.approx(x.value, 20))
+    assert.is.truthy(cassowary.approx(y.value, 20))
+  end)
 
-      solver:addEditVar(a, c.Strength.required) :beginEdit() :suggestValue(a, 2) :resolve();
-
-      assert.equal(2, a.value);
-      assert.equal(2, b.value);
-      
-      solver:suggestValue(a, 10):resolve();
-        
-      assert.equal(10, a.value);
-      assert.equal(10, b.value);
-    end);
-    it('works with weight', function ()
-      local x = c.Variable({ name= 'x' });
-      local y = c.Variable({ name= 'y' });
-      local solver = c.SimplexSolver();
-      solver:addStay(x):addStay(y):addConstraint(c.Equation(x, y, c.Strength.required)):addEditVar(x,c.Strength.medium,1)
-      solver:addEditVar(y,c.Strength.medium,10):beginEdit()
-      solver:suggestValue(x, 10):suggestValue(y, 20)
-      solver:resolve();
-      assert.is.truthy(c.approx(x.value, 20));
-      assert.is.truthy(c.approx(y.value, 20));
-    end);        
-  end);
+end)
