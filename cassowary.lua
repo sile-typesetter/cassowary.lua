@@ -168,10 +168,10 @@ cassowary.Strength = class {
 
   _init = function ( self, name, w1, w2, w3 )
     self.name = name
-    if (type(w1) == "table" and a.prototype and a._type == "SymbolicWeight") then
+    if (type(w1) == "table" and w1.prototype and w1._type == "SymbolicWeight") then
       self.symbolicWeight = w1
     else
-      self.symbolicWeight = cassowary.SymbolicWeight { w1; w2; w3 }
+      self.symbolicWeight = cassowary.SymbolicWeight { w1, w2, w3 }
     end
     return self
   end,
