@@ -190,15 +190,22 @@ cassowary.Strength.strong = cassowary.Strength("strong", 1, 0, 0)
 cassowary.Strength.medium = cassowary.Strength("medium", 0, 1, 0)
 cassowary.Strength.weak = cassowary.Strength("weak", 0, 0, 1)
 
-cassowary.EditInfo = class {_type = "EditInfo",
-__tostring = function (self)
-  s = "EditInfo:"
-end}
+cassowary.EditInfo = class {
+  _type = "EditInfo",
+
+  __tostring = function ()
+    return "EditInfo:"
+  end
+}
 
 cassowary.Error = class {
-_type = "Error", description = "An error has occured in Cassowary",
-__tostring = function (self) return self._type..": "..self.description end
+  _type = "Error", description = "An error has occured in Cassowary",
+
+  __tostring = function (self)
+    return self._type..": "..self.description
+  end
 }
+
 cassowary.ConstraintError = inherit(cassowary.Error, { _type = "ConstraintError", description = "Tried to remove a constraint never added to the tableau" })
 cassowary.InternalError   = inherit(cassowary.Error, { _type = "InternalError" })
 cassowary.NonExpression   = inherit(cassowary.Error, { _type = "NonExpression", description = "The resulting expression would be non" })
@@ -244,7 +251,7 @@ cassowary.Tableau = class {
   addRow = function (self, aVar, expr)
     cassowary:traceFnEnterPrint("addRow: "..tostring(aVar)..", "..tostring(expr))
     self.rows[aVar] = expr
-    for clv, coeff in pairs(expr.terms) do
+    for clv, _ in pairs(expr.terms) do
       self:insertColVar(clv, aVar)
       if clv.isExternal then self.externalParametricVars = self.externalParametricVars + clv end
     end
@@ -261,8 +268,6 @@ cassowary.Tableau = class {
         local expr = self.rows[clv]
         expr.terms[aVar] = nil
       end
-    else
-      --print("Could not find "..aVar.." in columns")
     end
     if aVar.isExternal then
       self.externalRows = self.externalRows - aVar
@@ -274,7 +279,7 @@ cassowary.Tableau = class {
     cassowary:traceFnEnterPrint("removeRow: "..tostring(aVar) )
     local expr = self.rows[aVar]
     assert(expr)
-    for clv, coeff in pairs(expr.terms) do
+    for clv, _ in pairs(expr.terms) do
       local varset = self.columns[clv]
       if varset then
         varset = varset - aVar
@@ -421,7 +426,7 @@ cassowary.Expression = class {
     if self:isConstant() then
       error(cassowary.InternalError { description = "anyPivotableVariable called on a constant"})
     end
-    for clv, coeff in pairs(self.terms) do
+    for clv, _ in pairs(self.terms) do
       if clv.isPivotable then return clv end
     end
     return nil
@@ -466,10 +471,7 @@ cassowary.Expression = class {
   end,
 
   isConstant = function (self)
-    for _ in pairs(self.terms) do
-      return false
-    end
-    return true
+    return #self.terms == 0
   end,
 
   equals = function (self, other)
@@ -579,7 +581,7 @@ cassowary.Inequality = inherit(cassowary.Constraint, {
   _type = "Inequality",
   isInequality = true,
 
-  cloneOrNewCle = function (self, cle)
+  cloneOrNewCle = function (cle)
     if type(cle)=="table" and cle.clone then return cle:clone() else return cassowary.Expression(cle) end
   end,
 
@@ -588,7 +590,7 @@ cassowary.Inequality = inherit(cassowary.Constraint, {
     -- (cle || number), op, cv
     if (type(a1) == "number" or a1._type == "Expression") and type(a3) == "table" and a3._type:match("Variable") then
       local cle, op, cv, strength, weight = a1, a2, a3, a4, a5
-      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
+      self = cassowary.Constraint.initializer(self, self.cloneOrNewCle(cle), strength, weight)
       if op == "<=" then
         self.expression:multiplyMe(-1)
         self.expression:addVariable(cv)
@@ -600,7 +602,7 @@ cassowary.Inequality = inherit(cassowary.Constraint, {
     -- cv, op, (cle || number)
     elseif type(a1) == "table" and a1._type:match("Variable") and a3 and (type(a3) == "number" or a3._type == "Expression") then
       local cle, op, cv, strength, weight = a3, a2, a1, a4, a5
-      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle), strength, weight)
+      self = cassowary.Constraint.initializer(self, self.cloneOrNewCle(cle), strength, weight)
       if op == ">=" then -- a switch!
         self.expression:multiplyMe(-1)
         self.expression:addVariable(cv)
@@ -613,37 +615,37 @@ cassowary.Inequality = inherit(cassowary.Constraint, {
     elseif type(a1) == "table" and a1._type == "Expression" and type(a3) == "number" then
       -- I feel like I'm writing Java
       local cle1, op, cle2, strength, weight = a1, a2, a3, a4, a5
-      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
+      self = cassowary.Constraint.initializer(self, self.cloneOrNewCle(cle1), strength, weight)
       if op == "<=" then
         self.expression:multiplyMe(-1)
-        self.expression:addExpression(self:cloneOrNewCle(cle2))
+        self.expression:addExpression(self.cloneOrNewCle(cle2))
       elseif op == ">=" then
         -- Just keep turning the crank and the code keeps coming out
-        self.expression:addExpression(self:cloneOrNewCle(cle2), -1)
+        self.expression:addExpression(self.cloneOrNewCle(cle2), -1)
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
     elseif type(a1) == "number" and type(a3) == "table" and a3._type == "Expression" then
       -- Polymorphism makes a lot of sense in strongly-typed languages
       local cle1, op, cle2, strength, weight = a3, a2, a1, a4, a5
-      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle1), strength, weight)
+      self = cassowary.Constraint.initializer(self, self.cloneOrNewCle(cle1), strength, weight)
       if op == ">=" then
         self.expression:multiplyMe(-1)
-        self.expression:addExpression(self:cloneOrNewCle(cle2))
+        self.expression:addExpression(self.cloneOrNewCle(cle2))
       elseif op == "<=" then
-        self.expression:addExpression(self:cloneOrNewCle(cle2), -1)
+        self.expression:addExpression(self.cloneOrNewCle(cle2), -1)
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
     elseif type(a1) == "table" and a1._type == "Expression" and type(a3) == "table" and a3._type == "Expression" then
       -- but in weakly-typed languages it really doesn't gain you anything.
       local cle1, op, cle2, strength, weight = a1, a2, a3, a4, a5
-      self = cassowary.Constraint.initializer(self, self:cloneOrNewCle(cle2), strength, weight)
+      self = cassowary.Constraint.initializer(self, self.cloneOrNewCle(cle2), strength, weight)
       if op == ">=" then
         self.expression:multiplyMe(-1)
-        self.expression:addExpression(self:cloneOrNewCle(cle1))
+        self.expression:addExpression(self.cloneOrNewCle(cle1))
       elseif op == "<=" then
-        self.expression:addExpression(self:cloneOrNewCle(cle1), -1)
+        self.expression:addExpression(self.cloneOrNewCle(cle1), -1)
       else
         error(cassowary.InternalError { description = "Invalid operator in c.Inequality constructor"})
       end
@@ -776,19 +778,19 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
   end,
 
   beginEdit = function (self)
-    local count = 0
-    for _ in pairs(self.editVarMap) do count = count + 1 end
-    assert(count > 0)
+    local i = 0
+    for _ in pairs(self.editVarMap) do i = i + 1 end
+    assert(i > 0)
     self.infeasibleRows = Set {}
     self:resetStayConstants();
-    self.editVariableStack[#(self.editVariableStack)+1] = count
+    self.editVariableStack[#(self.editVariableStack)+1] = i
     return self;
   end,
 
   endEdit = function ( self )
-    local count = 0
-    for _ in pairs(self.editVarMap) do count = count + 1 end
-    assert(count > 0)
+    local i = 0
+    for _ in pairs(self.editVarMap) do i = i + 1 end
+    assert(i > 0)
     self:resolve()
     table.remove(self.editVariableStack)
     local last = self.editVariableStack[#(self.editVariableStack)]
@@ -809,9 +811,9 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
       end
       self.editVarList[k] = nil
     end
-    local count = 0
-    for _ in pairs(self.editVarMap) do count = count + 1 end
-    assert(count == n)
+    local i = 0
+    for _ in pairs(self.editVarMap) do i = i + 1 end
+    assert(i == n)
   end,
 
   addPointStays = function (self, points)
@@ -898,16 +900,16 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
       if exitVar then self:pivot(marker, exitVar) end
     end
     if self.rows[marker] then self:removeRow(marker) end
-    if eVars then
-      for i=1, #eVars do local v = eVars[i]
+    if evars then
+      for i=1, #evars do local v = evars[i]
         if not (v == marker) then self:removeColumn(v) end
       end
     end
     if cn.isStayConstraint then
-      if eVars then
+      if evars then
         for i = 1, #(self.stayPlusErrorVars) do
-          eVars[self.stayPlusErrorVars[i]] = nil
-          eVars[self.stayMinusErrorVars[i]] = nil
+          evars[self.stayPlusErrorVars[i]] = nil
+          evars[self.stayMinusErrorVars[i]] = nil
         end
       end
     elseif cn.isEditConstraint then
@@ -916,7 +918,7 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
       self:removeColumn(cei.editMinus)
       self.editVarMap[cn.variable] = nil
     end
-    if eVars then self.errorVars[eVars] = nil end
+    if evars then self.errorVars[evars] = nil end
     if self.autoSolve then
       self:optimize(self.objective)
       self:setExternalVariables()
@@ -924,7 +926,7 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
     return self
   end,
 
-  reset = function (self)
+  reset = function ()
     error(cassowary.InternalError { description = "reset not implemented" })
   end,
 
@@ -966,15 +968,15 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
     return self
   end,
 
-  setEditedValue = function (self, v, n)
+  setEditedValue = function ()
     assert("Nobody calls this")
   end,
 
-  addVar = function (self, v)
+  addVar = function ()
     assert("Or this")
   end,
 
-  getInternalInfo = function (self)
+  getInternalInfo = function ()
     error("Unimplemented")
   end,
 
@@ -1100,7 +1102,7 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
       local exitVar = SetFirst(self.infeasibleRows)
       self.infeasibleRows = self.infeasibleRows - exitVar
       local entryVar = nil
-      expr = self.rows[exitVar]
+      local expr = self.rows[exitVar]
       if expr and expr.constant < 0 then
         local ratio = 1/0
         local r
@@ -1127,10 +1129,7 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
     cassowary:traceFnEnterPrint("newExpression "..tostring(cn))
     local cnExpr = cn.expression
     local expr = cassowary.Expression.fromConstant(cnExpr.constant)
-    local slackvar = cassowary.SlackVariable {}
-    local dummyvar = cassowary.DummyVariable {}
-    local eminus = cassowary.SlackVariable {}
-    local eplus = cassowary.SlackVariable {}
+    local slackvar, dummyvar, eminus, eplus
     local cnTerms = cnExpr.terms
     local eplus_eminus = {}
     local prevEConstant
@@ -1216,7 +1215,7 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
       if objectiveCoeff >= -epsilon then return end
       local minRatio = 2^64
       local columnVars = self.columns[entryVar]
-      local r = 0
+      local r
       for v in Set.values(columnVars):iter() do
         cassowary:tracePrint("Checking "..tostring(v))
         if v.isPivotable then
@@ -1250,7 +1249,6 @@ cassowary.SimplexSolver = inherit(cassowary.Tableau, {
   resetStayConstants = function (self)
     cassowary:tracePrint("resetStayConstants")
     local spev = self.stayPlusErrorVars
-    local i
     for i = 1, #spev do
       local expr = self.rows[spev[i]]
       if not expr then expr = self.rows[self.stayMinusErrorVars[i]] end
