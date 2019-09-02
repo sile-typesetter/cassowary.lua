@@ -20,7 +20,7 @@ before_install:
   - luarocks install luacov-coveralls
 
 install:
-  - luarocks install --only-deps cassowary.rockspec
+  - luarocks install --only-deps cassowary-scm-0.rockspec
 
 script:
   - luacheck cassowary-scm-0.rockspec

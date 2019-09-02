@@ -1,9 +1,10 @@
 package = "Cassowary"
-version = "2.1-1"
+version = "scm-0"
+
 source = {
    url = "git://github.com/simoncozens/cassowary.lua",
-   tag = "v2.1",
 }
+
 description = {
    summary = "The cassowary constraint solver.",
    detailed = [[
@@ -14,13 +15,15 @@ description = {
    homepage = "https://github.com/simoncozens/cassowary.lua",
    license = "Apache 2"
 }
+
 dependencies = {
-   "lua";
+   "lua",
    "penlight"
 }
+
 build = {
    type = "builtin",
    modules = {
-      cassowary = "cassowary.lua/cassowary.lua"
+      cassowary = "cassowary.lua"
    }
 }
