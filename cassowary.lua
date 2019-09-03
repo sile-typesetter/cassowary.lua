@@ -198,24 +198,20 @@ cassowary.EditInfo = class({
 })
 
 cassowary.Error = class({
-  description = "An error has occured in Cassowary",
+  description = "Error: An error has occured in Cassowary",
 
   _init = function (self, desc)
-    if desc then self.description = desc end
+    if desc then self.description = self.description .. ": " .. desc end
   end,
 
   __tostring = function (self)
-    -- TODO find self class type to string
-    return self._type..": "..self.description
+    return self.description
   end
 })
 
-cassowary.ConstraintError = subclass(cassowary.Error, { description = "Tried to remove a constraint never added to the tableau" })
-cassowary.InternalError   = subclass(cassowary.Error, { })
-cassowary.NonExpression   = subclass(cassowary.Error, { description = "The resulting expression would be non" })
-cassowary.NotEnoughStays  = subclass(cassowary.Error, { description = "There are not enough stays to give specific values to every variable" })
-cassowary.RequiredFailure = subclass(cassowary.Error, { description = "A required constraint cannot be satisfied" })
-cassowary.TooDifficult    = subclass(cassowary.Error, { description = "The constraints are too difficult to solve" })
+cassowary.InternalError   = subclass(cassowary.Error, { description = "InternalError" })
+cassowary.NonExpression   = subclass(cassowary.Error, { description = "NonExpression: The resulting expression would be non" })
+cassowary.RequiredFailure = subclass(cassowary.Error, { description = "RequiredFailure: A required constraint cannot be satisfied" })
 
 cassowary.Tableau = class({
   _init = function (self)
