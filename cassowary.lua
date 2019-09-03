@@ -964,7 +964,7 @@ cassowary.SimplexSolver = subclass(cassowary.Tableau, {
     end
     local e = self.rows[av]
     if e then
-      if e.isConstant then
+      if e:isConstant() then
         self:removeRow(av)
         self:removeRow(az)
         return
