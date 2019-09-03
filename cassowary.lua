@@ -463,7 +463,7 @@ cassowary.Expression = class({
   end,
 
   isConstant = function (self)
-    return #self.terms == 0
+    return next(self.terms) == nil -- terms contraindicate an equation being constant
   end,
 
   equals = function (self, other)
