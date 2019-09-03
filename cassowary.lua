@@ -20,20 +20,6 @@ local gensym = function ()
   return count
 end
 
-local function gPairs (t)
-  local a = {}
-  for n in pairs(t) do table.insert(a, n) end
-  table.sort(a, function (x, y) return x.hashcode < y.hashcode end)
-  local i = 0      -- iterator variable
-  local iter = function ()   -- iterator function
-    i = i + 1
-    if a[i] == nil then return nil
-    else return a[i], t[a[i]]
-    end
-  end
-  return iter
-end
-
 local isExpression = function (f)
   return type(f) == "table" and f:is_a(cassowary.Expression)
 end
@@ -488,7 +474,8 @@ cassowary.Expression = class({
       if self:isConstant() then return rv end
       needsplus = true
     end
-    for clv, coeff in gPairs(self.terms) do
+    local sort_hashcodes = function (a, b) return a.hashcode < b.hashcode end
+    for clv, coeff in tablex.sort(self.terms, sort_hashcodes) do
       if needsplus then rv = rv .. " + " end
       rv = rv .. coeff .. "*" .. clv.value
       needsplus = true
