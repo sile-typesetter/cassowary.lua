@@ -50,6 +50,10 @@ local isNumber = function (f)
   return type(f) == "number"
 end
 
+local isWeight = function (f)
+  return type(f) == "table" and f:is_a(cassowary.SymbolicWeight)
+end
+
 local SetFirst = function (set)
   return Set.values(set)[1]
 end
@@ -73,11 +77,11 @@ cassowary = {
   end,
 
   exprFromVarOrValue = function (v)
-    if type(v) == "number" then
+    if isNumber(v) then
       return cassowary.Expression.fromConstant(v)
     elseif isExpression(v) then
       return v
-    elseif type(v) == "table" then
+    elseif isVariable(v) then
       return cassowary.Expression.fromVariable(v)
     else
       return v
@@ -170,7 +174,7 @@ cassowary.SymbolicWeight = class({
 cassowary.Strength = class({
   _init = function (self, name, w1, w2, w3)
     self.name = name
-    if (type(w1) == "table" and w1:is_a(cassowary.SymbolicWeight)) then
+    if isWeight(w1) then
       self.symbolicWeight = w1
     else
       self.symbolicWeight = cassowary.SymbolicWeight({ w1, w2, w3 })
@@ -323,7 +327,7 @@ cassowary.Expression = class({
     self.hashcode = gensym()
     self.constant = type(constant) == "number" and constant or 0
     self.terms = {}
-    if type(cvar) == "number" then self.constant = cvar
+    if isNumber(cvar) then self.constant = cvar
     elseif type(cvar) == "table" then
       self:setVariable(cvar, type(value) == "number" and value or 1)
     end
@@ -476,7 +480,7 @@ cassowary.Expression = class({
     end
   end,
 
-  __tostring = function (self) -- worth it for debugging, eh
+  __tostring = function (self)
     local rv = ""
     local needsplus = false
     if (not cassowary.approx(self.constant, 0) or self:isConstant()) then
@@ -563,7 +567,7 @@ cassowary.Inequality = subclass(cassowary.AbstractConstraint, {
   _init = function (self, a1, a2, a3, a4, a5)
     -- This disgusting mess copied from slightyoff's disgusting mess
     -- (cle || number), op, cv
-    if (type(a1) == "number" or a1:is_a(cassowary.Expression) and type(a3) == "table" and a3:is_a(cassowary.Variable)) then
+    if (isNumber(a1) or isExpression(a1)) and isVariable(a3) and not isExpression(a3) then
       local cle, op, cv, strength, weight = a1, a2, a3, a4, a5
       self:super(self.cloneOrNewCle(cle), strength, weight)
       if op == "<=" then
@@ -575,7 +579,7 @@ cassowary.Inequality = subclass(cassowary.AbstractConstraint, {
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
     -- cv, op, (cle || number)
-    elseif type(a1) == "table" and a1:is_a(cassowary.Variable) and a3 and (type(a3) == "number" or a3:is_a(cassowary.Expression)) then
+    elseif isVariable(a1) and (isNumber(a3) or isExpression(a3)) then
       local cle, op, cv, strength, weight = a3, a2, a1, a4, a5
       self:super(self.cloneOrNewCle(cle), strength, weight)
       if op == ">=" then -- a switch!
@@ -587,7 +591,7 @@ cassowary.Inequality = subclass(cassowary.AbstractConstraint, {
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
     -- cle, op, num
-    elseif type(a1) == "table" and a1:is_a(cassowary.Expression) and type(a3) == "number" then
+    elseif isExpression(a1) and isNumber(a3) then
       -- I feel like I'm writing Java
       local cle1, op, cle2, strength, weight = a1, a2, a3, a4, a5
       self:super(self.cloneOrNewCle(cle1), strength, weight)
@@ -600,7 +604,7 @@ cassowary.Inequality = subclass(cassowary.AbstractConstraint, {
       else
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
-    elseif type(a1) == "number" and type(a3) == "table" and a3:is_a(cassowary.Expression) then
+    elseif isNumber(a1) and isExpression(a3) then
       -- Polymorphism makes a lot of sense in strongly-typed languages
       local cle1, op, cle2, strength, weight = a3, a2, a1, a4, a5
       self:super(self.cloneOrNewCle(cle1), strength, weight)
@@ -612,7 +616,7 @@ cassowary.Inequality = subclass(cassowary.AbstractConstraint, {
       else
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
-    elseif type(a1) == "table" and a1:is_a(cassowary.Expression) and type(a3) == "table" and a3:is_a(cassowary.Expression) then
+    elseif isExpression(a1) and isExpression(a3) then
       -- but in weakly-typed languages it really doesn't gain you anything.
       local cle1, op, cle2, strength, weight = a1, a2, a3, a4, a5
       self:super(self.cloneOrNewCle(cle2), strength, weight)
@@ -624,7 +628,7 @@ cassowary.Inequality = subclass(cassowary.AbstractConstraint, {
       else
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
-    elseif type(a1) == "table" and a1:is_a(cassowary.Expression) then
+    elseif isExpression(a1) then
       self:super(a1, a2, a3)
     elseif a2 == ">=" then
       self:super(cassowary.Expression(a3), a4, a5)
