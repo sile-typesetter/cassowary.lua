@@ -24,7 +24,7 @@ install:
 
 script:
   - luacheck cassowary-scm-0.rockspec
-  - busted -c tests
+  - busted -c
 
 after_success:
   - luacov-coveralls -v
