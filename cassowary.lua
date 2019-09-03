@@ -471,17 +471,13 @@ cassowary.Expression = class({
   end,
 
   equals = function (self, other)
-    if self == other then return true end
-    if not (other:is_a(cassowary.Expression) and other.constant == self.constant) then return false end
-    -- This is wasteful but I am lazy and lua is fast and most expressions are small
-    for k, v in pairs(self.terms) do
-      if not (other.terms[k] == v) then return false end
+    if self == other then
+      return true
+    elseif isExpression(other) and not other:isConstant() then
+      return tablex.deepcompare(self.terms, other.terms)
+    else
+      return other.constant == self.constant
     end
-    for k, v in pairs(other.terms) do
-      if not (self.terms[k] == v) then return false end
-    end
-    return true
-
   end,
 
   __tostring = function (self) -- worth it for debugging, eh
