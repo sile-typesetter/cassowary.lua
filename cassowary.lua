@@ -34,6 +34,22 @@ local function gPairs (t)
   return iter
 end
 
+local isExpression = function (f)
+  return type(f) == "table" and f:is_a(cassowary.Expression)
+end
+
+local isVariable = function (f)
+  return type(f) == "table" and f:is_a(cassowary.Variable)
+end
+
+local isStrength = function (f)
+  return type(f) == "table" and f:is_a(cassowary.Strength)
+end
+
+local isNumber = function (f)
+  return type(f) == "number"
+end
+
 local SetFirst = function (set)
   return Set.values(set)[1]
 end
@@ -59,7 +75,7 @@ cassowary = {
   exprFromVarOrValue = function (v)
     if type(v) == "number" then
       return cassowary.Expression.fromConstant(v)
-    elseif v._type == "Expression" then
+    elseif isExpression(v) then
       return v
     elseif type(v) == "table" then
       return cassowary.Expression.fromVariable(v)
@@ -103,7 +119,6 @@ cassowary.AbstractVariable = class({
   isExternal = false,
   isPivotable = false,
   isRestricted = false,
-  _type = "AbstractVariable",
 
   _init = function (self, properties)
     self.hashcode = gensym()
@@ -118,13 +133,11 @@ cassowary.AbstractVariable = class({
 
 cassowary.Variable = subclass(cassowary.AbstractVariable, {
   varnameprefix = "v",
-  _type = "Variable",
   isExternal = true
 })
 
 cassowary.DummyVariable = subclass(cassowary.AbstractVariable, {
   varnameprefix = "d",
-  _type = "DummyVariable",
   isDummy = true,
   isRestricted = true,
   value = "dummy"
@@ -132,13 +145,11 @@ cassowary.DummyVariable = subclass(cassowary.AbstractVariable, {
 
 cassowary.ObjectiveVariable = subclass(cassowary.AbstractVariable, {
   varnameprefix = "o",
-  _type = "ObjectiveVariable",
   value = "obj"
 })
 
 cassowary.SlackVariable = subclass(cassowary.AbstractVariable, {
   varnameprefix = "s",
-  _type = "SlackVariable",
   value = "slack",
   isPivotable = true,
   isRestricted = true
@@ -146,8 +157,6 @@ cassowary.SlackVariable = subclass(cassowary.AbstractVariable, {
 
 local _multiplier = 1000
 cassowary.SymbolicWeight = class({
-  _type = "SymbolicWeight",
-
   _init = function (self, coefficients)
     self.value = 0
     local factor = 1
@@ -159,11 +168,9 @@ cassowary.SymbolicWeight = class({
 })
 
 cassowary.Strength = class({
-  _type = "Strength",
-
   _init = function (self, name, w1, w2, w3)
     self.name = name
-    if (type(w1) == "table" and w1.prototype and w1._type == "SymbolicWeight") then
+    if (type(w1) == "table" and w1:is_a(cassowary.SymbolicWeight)) then
       self.symbolicWeight = w1
     else
       self.symbolicWeight = cassowary.SymbolicWeight({ w1, w2, w3 })
@@ -185,15 +192,12 @@ cassowary.Strength.medium = cassowary.Strength("medium", 0, 1, 0)
 cassowary.Strength.weak = cassowary.Strength("weak", 0, 0, 1)
 
 cassowary.EditInfo = class({
-  _type = "EditInfo",
-
   __tostring = function ()
     return "EditInfo:"
   end
 })
 
 cassowary.Error = class({
-  _type = "Error",
   description = "An error has occured in Cassowary",
 
   _init = function (self, desc)
@@ -201,20 +205,19 @@ cassowary.Error = class({
   end,
 
   __tostring = function (self)
+    -- TODO find self class type to string
     return self._type..": "..self.description
   end
 })
 
-cassowary.ConstraintError = subclass(cassowary.Error, { _type = "ConstraintError", description = "Tried to remove a constraint never added to the tableau" })
-cassowary.InternalError   = subclass(cassowary.Error, { _type = "InternalError" })
-cassowary.NonExpression   = subclass(cassowary.Error, { _type = "NonExpression", description = "The resulting expression would be non" })
-cassowary.NotEnoughStays  = subclass(cassowary.Error, { _type = "NotEnoughStays", description = "There are not enough stays to give specific values to every variable" })
-cassowary.RequiredFailure = subclass(cassowary.Error, { _type = "RequiredFailure", description = "A required constraint cannot be satisfied" })
-cassowary.TooDifficult    = subclass(cassowary.Error, { _type = "TooDifficult", description = "The constraints are too difficult to solve" })
+cassowary.ConstraintError = subclass(cassowary.Error, { description = "Tried to remove a constraint never added to the tableau" })
+cassowary.InternalError   = subclass(cassowary.Error, { })
+cassowary.NonExpression   = subclass(cassowary.Error, { description = "The resulting expression would be non" })
+cassowary.NotEnoughStays  = subclass(cassowary.Error, { description = "There are not enough stays to give specific values to every variable" })
+cassowary.RequiredFailure = subclass(cassowary.Error, { description = "A required constraint cannot be satisfied" })
+cassowary.TooDifficult    = subclass(cassowary.Error, { description = "The constraints are too difficult to solve" })
 
 cassowary.Tableau = class({
-  _type = "Tableau",
-
   _init = function (self)
     self.columns = {}
     self.rows = {}
@@ -320,8 +323,6 @@ cassowary.Tableau = class({
 })
 
 cassowary.Expression = class({
-  _type = "Expression",
-
   _init = function (self, cvar, value, constant)
     self.hashcode = gensym()
     self.constant = type(constant) == "number" and constant or 0
@@ -361,27 +362,27 @@ cassowary.Expression = class({
   end,
 
   plus = function (self, x)
-    if x._type == "Expression" then return (self:clone()):addExpression(x, 1)
-    elseif x._type:match("Variable") then return (self:clone()):addVariable(x, 1)
+    if x:is_a(cassowary.Expression) then return (self:clone()):addExpression(x, 1)
+    elseif x:is_a(cassowary.Variable) then return (self:clone()):addVariable(x, 1)
     end
   end,
 
   minus = function (self, x)
-    if x._type == "Expression" then return (self:clone()):addExpression(x, -1)
-    elseif x._type:match("Variable") then return (self:clone()):addVariable(x, -1)
+    if x:is_a(cassowary.Expression) then return (self:clone()):addExpression(x, -1)
+    elseif x:is_a(cassowary.Variable) then return (self:clone()):addVariable(x, -1)
     end
   end,
 
   divide = function (self, x)
     if type(x) == "number" then
       if cassowary.approx(x, 0) then error(cassowary.NonExpression) else return self:times(1/x) end
-    elseif x._type == "Expression" then
+    elseif x:is_a(cassowary.Expression) then
       if not x:isConstant() then error(cassowary.NonExpression) else return self:times(1/x.constant) end
     end
   end,
 
   addExpression = function (self, expr, n, subject, solver)
-    if expr._type:match("Variable") then expr = cassowary.Expression.fromVariable(expr) end
+    if expr:is_a(cassowary.Variable) then expr = cassowary.Expression.fromVariable(expr) end
     n = type(n) == "number" and n or 1
     self.constant = self.constant + (n * expr.constant)
     for clv, coeff in pairs(expr.terms) do
@@ -471,7 +472,7 @@ cassowary.Expression = class({
 
   equals = function (self, other)
     if self == other then return true end
-    if not (other._type == "Expression" and other.constant == self.constant) then return false end
+    if not (other:is_a(cassowary.Expression) and other.constant == self.constant) then return false end
     -- This is wasteful but I am lazy and lua is fast and most expressions are small
     for k, v in pairs(self.terms) do
       if not (other.terms[k] == v) then return false end
@@ -519,16 +520,16 @@ cassowary.Expression = class({
 local _constraintStringify = function (self) return tostring(self.strength) .. " {" .. tostring(self.weight) .. "} (" .. tostring(self.expression) .. ")" end
 
 cassowary.AbstractConstraint = class({
-  _type = "AbstractConstraint",
   isEditConstraint = false,
   isInequality = false,
   isStayConstraint = false,
   __tostring = _constraintStringify,
 
-  _init = function (self, strength, weight)
+  _init = function (self, cle, strength, weight)
     self.hashcode = gensym()
     self.strength = strength or cassowary.Strength.required
     self.weight = (not weight or weight == 0) and 1 or weight
+    if cle then self.expression = cle end
   end,
 
   required = function (self)
@@ -537,11 +538,10 @@ cassowary.AbstractConstraint = class({
 })
 
 cassowary.EditConstraint = subclass(cassowary.AbstractConstraint, {
-  _type = "EditConstraint",
   isEditConstraint = true,
 
   _init = function (self, cv, strength, weight)
-    self:super(strength, weight)
+    self:super(nil, strength, weight)
     self.variable = cv
     self.expression = cassowary.Expression(cv, -1, cv.value)
   end,
@@ -550,11 +550,10 @@ cassowary.EditConstraint = subclass(cassowary.AbstractConstraint, {
 })
 
 cassowary.StayConstraint = subclass(cassowary.AbstractConstraint, {
-  _type = "StayConstraint",
   isStayConstraint = true,
 
   _init = function (self, cv, strength, weight)
-    self:super(strength, weight)
+    self:super(nil, strength, weight)
     self.variable = cv
     self.expression = cassowary.Expression(cv, -1, cv.value)
   end,
@@ -562,17 +561,7 @@ cassowary.StayConstraint = subclass(cassowary.AbstractConstraint, {
   __tostring = function (self) return "stay: ".._constraintStringify(self) end
 })
 
-cassowary.Constraint = subclass(cassowary.AbstractConstraint, {
-  _type = "Constraint",
-
-  _init = function (self, cle, strength, weight)
-    self:super(strength, weight)
-    self.expression = cle
-  end,
-})
-
-cassowary.Inequality = subclass(cassowary.Constraint, {
-  _type = "Inequality",
+cassowary.Inequality = subclass(cassowary.AbstractConstraint, {
   isInequality = true,
 
   cloneOrNewCle = function (cle)
@@ -582,7 +571,7 @@ cassowary.Inequality = subclass(cassowary.Constraint, {
   _init = function (self, a1, a2, a3, a4, a5)
     -- This disgusting mess copied from slightyoff's disgusting mess
     -- (cle || number), op, cv
-    if (type(a1) == "number" or a1._type == "Expression") and type(a3) == "table" and a3._type:match("Variable") then
+    if (type(a1) == "number" or a1:is_a(cassowary.Expression) and type(a3) == "table" and a3:is_a(cassowary.Variable)) then
       local cle, op, cv, strength, weight = a1, a2, a3, a4, a5
       self:super(self.cloneOrNewCle(cle), strength, weight)
       if op == "<=" then
@@ -594,7 +583,7 @@ cassowary.Inequality = subclass(cassowary.Constraint, {
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
     -- cv, op, (cle || number)
-    elseif type(a1) == "table" and a1._type:match("Variable") and a3 and (type(a3) == "number" or a3._type == "Expression") then
+    elseif type(a1) == "table" and a1:is_a(cassowary.Variable) and a3 and (type(a3) == "number" or a3:is_a(cassowary.Expression)) then
       local cle, op, cv, strength, weight = a3, a2, a1, a4, a5
       self:super(self.cloneOrNewCle(cle), strength, weight)
       if op == ">=" then -- a switch!
@@ -606,7 +595,7 @@ cassowary.Inequality = subclass(cassowary.Constraint, {
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
     -- cle, op, num
-    elseif type(a1) == "table" and a1._type == "Expression" and type(a3) == "number" then
+    elseif type(a1) == "table" and a1:is_a(cassowary.Expression) and type(a3) == "number" then
       -- I feel like I'm writing Java
       local cle1, op, cle2, strength, weight = a1, a2, a3, a4, a5
       self:super(self.cloneOrNewCle(cle1), strength, weight)
@@ -619,7 +608,7 @@ cassowary.Inequality = subclass(cassowary.Constraint, {
       else
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
-    elseif type(a1) == "number" and type(a3) == "table" and a3._type == "Expression" then
+    elseif type(a1) == "number" and type(a3) == "table" and a3:is_a(cassowary.Expression) then
       -- Polymorphism makes a lot of sense in strongly-typed languages
       local cle1, op, cle2, strength, weight = a3, a2, a1, a4, a5
       self:super(self.cloneOrNewCle(cle1), strength, weight)
@@ -631,7 +620,7 @@ cassowary.Inequality = subclass(cassowary.Constraint, {
       else
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
-    elseif type(a1) == "table" and a1._type == "Expression" and type(a3) == "table" and a3._type == "Expression" then
+    elseif type(a1) == "table" and a1:is_a(cassowary.Expression) and type(a3) == "table" and a3:is_a(cassowary.Expression) then
       -- but in weakly-typed languages it really doesn't gain you anything.
       local cle1, op, cle2, strength, weight = a1, a2, a3, a4, a5
       self:super(self.cloneOrNewCle(cle2), strength, weight)
@@ -643,7 +632,7 @@ cassowary.Inequality = subclass(cassowary.Constraint, {
       else
         error(cassowary.InternalError("Invalid operator in c.Inequality constructor"))
       end
-    elseif type(a1) == "table" and a1._type == "Expression" then
+    elseif type(a1) == "table" and a1:is_a(cassowary.Expression) then
       self:super(a1, a2, a3)
     elseif a2 == ">=" then
       self:super(cassowary.Expression(a3), a4, a5)
@@ -663,14 +652,9 @@ cassowary.Inequality = subclass(cassowary.Constraint, {
   end
 })
 
-cassowary.Equation = subclass(cassowary.Constraint, {
-  _type = "Equation",
-
+cassowary.Equation = subclass(cassowary.AbstractConstraint, {
   _init = function (self, a1, a2, a3, a4)
-    local isExpression   = function (f) return (type(f)=="table" and f._type == "Expression") end
-    local isVariable     = function (f) return (type(f)=="table" and f._type:match("Variable")) end
-    local isNumber       = function (f) return (type(f)=="number") end
-    if (isExpression(a1) and not a2 or type(a2) == "table" and a2._type == "Strength") then
+    if (isExpression(a1) and not a2 or isStrength(a2)) then
       self:super(a1, a2, a3)
     elseif isVariable(a1) and isExpression(a2) then
       local cv, cle, strength, weight = a1, a2, a3, a4
@@ -693,7 +677,7 @@ cassowary.Equation = subclass(cassowary.Constraint, {
     else
       error("Bad initializer to Equation")
     end
-    assert(self.strength._type == "Strength")
+    assert(self.strength:is_a(cassowary.Strength))
   end,
 
   __tostring = function (self)
@@ -701,11 +685,7 @@ cassowary.Equation = subclass(cassowary.Constraint, {
   end
 })
 
-D(cassowary.Equation)
-
 cassowary.SimplexSolver = subclass(cassowary.Tableau, {
-  _type = "SimplexSolver",
-
   _init = function (self)
     self:super()
     self.stayMinusErrorVars = {}
