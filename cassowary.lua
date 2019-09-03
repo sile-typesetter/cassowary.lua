@@ -858,8 +858,8 @@ cassowary.SimplexSolver = subclass(cassowary.Tableau, {
     end
     if self.rows[marker] then self:removeRow(marker) end
     if evars then
-      for i=1, #evars do local v = evars[i]
-        if not (v == marker) then self:removeColumn(v) end
+      for _, v in ipairs(evars) do
+        if v ~= marker then self:removeColumn(v) end
       end
     end
     if cn.isStayConstraint then
