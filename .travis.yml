@@ -4,11 +4,16 @@ sudo: false
 
 env:
   matrix:
-    - LUA="lua 5.3"
-    - LUA="lua 5.2"
-    - LUA="lua 5.1"
-    - LUA="luajit 2.1"
-    - LUA="luajit 2.0"
+    - LUA="lua 5.3" PENLIGHT="luarocks"
+    - LUA="lua 5.3" PENLIGHT="github"
+    - LUA="lua 5.2" PENLIGHT="luarocks"
+    - LUA="lua 5.2" PENLIGHT="github"
+    - LUA="lua 5.1" PENLIGHT="luarocks"
+    - LUA="lua 5.1" PENLIGHT="github"
+    - LUA="luajit 2.1" PENLIGHT="luarocks"
+    - LUA="luajit 2.1" PENLIGHT="github"
+    - LUA="luajit 2.0" PENLIGHT="luarocks"
+    - LUA="luajit 2.0" PENLIGHT="github"
 
 before_install:
   - pip install hererocks
@@ -20,7 +25,8 @@ before_install:
   - luarocks install luacov-coveralls
 
 install:
-  - luarocks install --only-deps cassowary-scm-0.rockspec
+  - if [ "$PENLIGHT" = "luarocks" ]; then luarocks install penlight ; fi
+  - if [ "$PENLIGHT" = "github" ]; then luarocks install https://raw.githubusercontent.com/stevedonovan/Penlight/master/penlight-scm-2.rockspec ; fi
 
 script:
   - luacheck cassowary-scm-0.rockspec
