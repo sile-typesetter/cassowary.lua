@@ -1,6 +1,7 @@
 # Cassowary
 
-[![Actions Status](https://github.com/simoncozens/cassowary.lua/workflows/Test/badge.svg)](https://github.com/simoncozens/cassowary.lua/actions)
+[![Luacheck](https://github.com/simoncozens/cassowary.lua/workflows/Luacheck/badge.svg)](https://github.com/simoncozens/cassowary.lua/actions)
+[![Busted](https://github.com/simoncozens/cassowary.lua/workflows/Busted/badge.svg)](https://github.com/simoncozens/cassowary.lua/actions)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/simoncozens/cassowary.lua)](https://github.com/simoncozens/cassowary.lua/releases)
 [![LuaRocks](https://img.shields.io/luarocks/v/simoncozens/cassowary)](https://luarocks.org/modules/simoncozens/cassowary)
 
