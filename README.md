@@ -1,5 +1,9 @@
 # Cassowary
 
+[![Actions Status](https://github.com/simoncozens/cassowary.lua/workflows/Test/badge.svg)](https://github.com/simoncozens/cassowary.lua/actions)
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/simoncozens/cassowary.lua)](https://github.com/simoncozens/cassowary.lua/releases)
+[![LuaRocks](https://img.shields.io/luarocks/v/simoncozens/cassowary)](https://luarocks.org/modules/simoncozens/cassowary)
+
 This is a lua port of the [cassowary](http://constraints.cs.washington.edu/cassowary/)
 constraint solving toolkit. It allows you to use lua to solve algebraic equations and
 inequalities and find the values of unknown variables which satisfy those inequalities.
