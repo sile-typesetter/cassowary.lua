@@ -1,0 +1,33 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        luaVersion: ["5.3", "5.2", "5.1", "luajit", "luajit-openresty"]
+        penlightSource: ["penlight", "https://raw.githubusercontent.com/stevedonovan/Penlight/master/penlight-scm-2.rockspec"]
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+    - name: Setup Lua
+      uses: leafo/gh-actions-lua@v2
+      with:
+        luaVersion: ${{ matrix.luaVersion }}
+    - name: Setup Lua Rocks
+      uses: leafo/gh-actions-luarocks@v2
+    - name: Setup dependencies
+      run: |
+        luarocks install luacheck
+        luarocks install busted
+        luarocks install luacov-coveralls
+        luarocks install ${{ matrix.penlightSource }}
+    - name: Run Code Linter
+      run: luacheck cassowary-scm-0.rockspec
+    - name: Run Busted Tests
+      run: busted -c
