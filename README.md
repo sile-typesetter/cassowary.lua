@@ -2,6 +2,7 @@
 
 [![Luacheck](https://github.com/sile-typesetter/cassowary.lua/workflows/Luacheck/badge.svg)](https://github.com/sile-typesetter/cassowary.lua/actions)
 [![Busted](https://github.com/sile-typesetter/cassowary.lua/workflows/Busted/badge.svg)](https://github.com/sile-typesetter/cassowary.lua/actions)
+[![Coverage Status](https://coveralls.io/repos/github/sile-typesetter/cassowary.lua/badge.svg?branch=master)](https://coveralls.io/github/sile-typesetter/cassowary.lua?branch=master)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/sile-typesetter/cassowary.lua)](https://github.com/sile-typesetter/cassowary.lua/releases)
 [![LuaRocks](https://img.shields.io/luarocks/v/sile-typesetter/cassowary)](https://luarocks.org/modules/sile-typesetter/cassowary)
 
