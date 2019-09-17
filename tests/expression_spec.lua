@@ -277,7 +277,7 @@ describe('cassowary.Expression', function ()
     a:substituteOut(v2, cassowary.Expression(v1, 2, 2))
 
     assert.same(26, a.constant)
-    assert.same(null, a.terms[v2])
+    assert.same(nil, a.terms[v2])
     assert.same(17, a.terms[v1])
   end)
 
@@ -287,7 +287,7 @@ describe('cassowary.Expression', function ()
 
     assert.same(1 / 2, e:newSubject(v))
     assert.same(-2.5, e.constant)
-    assert.same(null, e.terms[v])
+    assert.same(nil, e.terms[v])
     assert.same(true, e:isConstant())
   end)
 
@@ -298,7 +298,7 @@ describe('cassowary.Expression', function ()
 
     e:changeSubject(vb, va)
     assert.same(-2.5, e.constant)
-    assert.same(null, e.terms[va])
+    assert.same(nil, e.terms[va])
     assert.same(0.5, e.terms[vb])
   end)
 
@@ -360,8 +360,8 @@ describe('cassowary.Expression', function ()
 
     assert.same(2, tonumber(tostring(cassowary.divide(4, 2))))
     assert.same('0.5*167', tostring(cassowary.divide(x, 2)))
-    --assert.has_error(function () cassowary.divide(cassowary, 4, x) end)
-    --assert.has_error(function () cassowary.divide(cassowary, x, y) end)
+    assert.has_error(function () cassowary.divide(cassowary, 4, x) end)
+    assert.has_error(function () cassowary.divide(cassowary, x, y) end)
   end)
 
 end)
