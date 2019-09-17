@@ -1,9 +1,9 @@
 # Cassowary
 
-[![Luacheck](https://github.com/simoncozens/cassowary.lua/workflows/Luacheck/badge.svg)](https://github.com/simoncozens/cassowary.lua/actions)
-[![Busted](https://github.com/simoncozens/cassowary.lua/workflows/Busted/badge.svg)](https://github.com/simoncozens/cassowary.lua/actions)
-[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/simoncozens/cassowary.lua)](https://github.com/simoncozens/cassowary.lua/releases)
-[![LuaRocks](https://img.shields.io/luarocks/v/simoncozens/cassowary)](https://luarocks.org/modules/simoncozens/cassowary)
+[![Luacheck](https://github.com/sile-typesetter/cassowary.lua/workflows/Luacheck/badge.svg)](https://github.com/sile-typesetter/cassowary.lua/actions)
+[![Busted](https://github.com/sile-typesetter/cassowary.lua/workflows/Busted/badge.svg)](https://github.com/sile-typesetter/cassowary.lua/actions)
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/sile-typesetter/cassowary.lua)](https://github.com/sile-typesetter/cassowary.lua/releases)
+[![LuaRocks](https://img.shields.io/luarocks/v/sile-typesetter/cassowary)](https://luarocks.org/modules/sile-typesetter/cassowary)
 
 This is a lua port of the [cassowary](http://constraints.cs.washington.edu/cassowary/)
 constraint solving toolkit. It allows you to use lua to solve algebraic equations and
