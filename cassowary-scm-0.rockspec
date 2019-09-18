@@ -2,7 +2,7 @@ package = "Cassowary"
 version = "scm-0"
 
 source = {
-   url = "git://github.com/simoncozens/cassowary.lua",
+   url = "git://github.com/sile-typesetter/cassowary.lua",
 }
 
 description = {
@@ -12,7 +12,7 @@ description = {
       It allows you to use lua to solve algebraic equations and inequalities 
       and find the values of unknown variables which satisfy those inequalities.
    ]],
-   homepage = "https://github.com/simoncozens/cassowary.lua",
+   homepage = "https://github.com/sile-typesetter/cassowary.lua",
    license = "Apache 2"
 }
 

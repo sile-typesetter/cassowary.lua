@@ -27,4 +27,8 @@ jobs:
         luarocks install luacov-coveralls
         luarocks install ${{ matrix.penlightSource }}
     - name: Run Busted Tests
-      run: busted -c
+      run: busted -c -v
+    - name: Report Test Coverage
+      if: matrix.luaVersion == '5.3' && matrix.penlightSource == 'penlight' && success()
+      continue-on-error: true
+      run: luacov-coveralls -i cassowary -v -t "${{ secrets.LUACOV_TOKEN }}"
