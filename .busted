@@ -1,6 +1,5 @@
 return {
   default = {
-    lpath = "./?.lua",
-    ROOT = { "tests/" }
+    lpath = "./?/init.lua",
   }
 }

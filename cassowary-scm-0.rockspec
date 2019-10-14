@@ -24,6 +24,6 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
-      cassowary = "cassowary.lua"
+      cassowary = "cassowary/init.lua"
    }
 }
