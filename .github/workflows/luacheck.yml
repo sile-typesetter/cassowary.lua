@@ -15,7 +15,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@master
     - name: Setup Lua
-      uses: leafo/gh-actions-lua@v2
+      uses: leafo/gh-actions-lua@v5
       with:
         luaVersion: ${{ matrix.luaVersion }}
     - name: Setup Lua Rocks
@@ -24,4 +24,4 @@ jobs:
       run: |
         luarocks install luacheck
     - name: Run Code Linter
-      run: luacheck cassowary-scm-0.rockspec tests
+      run: luacheck .
