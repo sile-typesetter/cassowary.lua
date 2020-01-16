@@ -23,11 +23,13 @@ jobs:
       uses: leafo/gh-actions-luarocks@v2
     - name: Setup dependencies
       run: |
+        luarocks install penlight ${{ matrix.penlightVersion }}
         luarocks install busted
         luarocks install luacov-coveralls
-        luarocks install penlight ${{ matrix.penlightVersion }}
     - name: Run Busted Tests
       run: busted -c -v
     - name: Report Test Coverage
       continue-on-error: true
-      run: luacov-coveralls -i cassowary -v -t "${{ secrets.LUACOV_TOKEN }}"
+      run: luacov-coveralls
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}

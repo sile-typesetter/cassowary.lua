@@ -3,3 +3,4 @@ return {
     lpath = "./?/init.lua",
   }
 }
+-- vim: ft=lua
