@@ -8,7 +8,7 @@ jobs:
       fail-fast: false
       matrix:
         luaVersion: ["5.4", "5.3", "5.2", "5.1", "luajit", "luajit-openresty"]
-        penlightVersion: ["1.8.0", "1.6.0", "1.5.4"]
+        penlightVersion: ["1.9.1", "1.8.0", "1.6.0", "1.5.4"]
 
     runs-on: ubuntu-latest
 
@@ -25,7 +25,7 @@ jobs:
       run: |
         luarocks install penlight ${{ matrix.penlightVersion }}
         luarocks install busted
-        luarocks install https://raw.githubusercontent.com/alerque/luacov-coveralls/master/rockspecs/luacov-coveralls-scm-0.rockspec
+        luarocks install https://raw.githubusercontent.com/moteus/luacov-coveralls/master/rockspecs/luacov-coveralls-scm-0.rockspec
     - name: Run Busted Tests
       run: busted -c -v
     - name: Report Test Coverage
@@ -33,4 +33,4 @@ jobs:
       continue-on-error: true
       run: luacov-coveralls -i cassowary -e .luarocks
       env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERALLS_REPO_TOKEN: ${{ github.token }}
