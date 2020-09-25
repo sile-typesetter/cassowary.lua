@@ -25,7 +25,7 @@ jobs:
       run: |
         luarocks install penlight ${{ matrix.penlightVersion }}
         luarocks install busted
-        luarocks install https://raw.githubusercontent.com/alerque/luacov-coveralls/master/rockspecs/luacov-coveralls-scm-0.rockspec
+        luarocks install https://raw.githubusercontent.com/moteus/luacov-coveralls/master/rockspecs/luacov-coveralls-scm-0.rockspec
     - name: Run Busted Tests
       run: busted -c -v
     - name: Report Test Coverage
@@ -33,4 +33,4 @@ jobs:
       continue-on-error: true
       run: luacov-coveralls -i cassowary -e .luarocks
       env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERALLS_REPO_TOKEN: ${{ github.token }}
