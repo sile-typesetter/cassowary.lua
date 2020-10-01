@@ -7,6 +7,14 @@ local cassowary
 local epsilon = 1e-8
 local count = 2
 
+-- The subclass() and initialize() functions are utilities to simplify the
+-- syntax of defining classes and populating instances. There is a long-hand
+-- way to do this documented in Penlight, and a short-hand syntax like this that
+-- should work but is too buggy to use. These workarounds work across a range
+-- of versions.  Someday it would be nice to deprecate these, but as of 1.9.2
+-- these helper functions still work better than what is provided. See
+-- https://github.com/lunarmodules/Penlight/projects/1
+-- to track progress on _init() reform and syntax variations.
 local subclass = function(base, inject)
   return tablex.update(class(base), inject)
 end
