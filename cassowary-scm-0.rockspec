@@ -1,4 +1,3 @@
-rockspec_format = "3.0"
 package = "cassowary"
 version = "scm-0"
 
