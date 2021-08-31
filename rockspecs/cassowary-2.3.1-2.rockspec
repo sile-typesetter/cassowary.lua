@@ -13,8 +13,7 @@ description = {
       and find the values of unknown variables which satisfy those
       inequalities.]],
    license = "Apache 2",
-   homepage = "https://github.com/sile-typesetter/cassowary.lua",
-   issues_url = "https://github.com/sile-typesetter/cassowary.lua/issues"
+   homepage = "https://github.com/sile-typesetter/cassowary.lua"
 }
 
 dependencies = {
