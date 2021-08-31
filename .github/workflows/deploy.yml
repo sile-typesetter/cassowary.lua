@@ -22,7 +22,7 @@ jobs:
         files: rockspecs/*.rockspec
         separator: '", "'
 
-  make:
+  build:
     needs: affected
     strategy:
       fail-fast: false
@@ -45,3 +45,20 @@ jobs:
     - name: Confirm rockspec builds
       run: |
         luarocks --lua-version ${{ matrix.luaVersion }} --local build -- ${{ matrix.rockspec }}
+
+  upload:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        rockspec: ${{ fromJSON(needs.affected.outputs.rockspecs) }}
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup ‘lua’
+      uses: leafo/gh-actions-lua@v8
+    - name: Setup ‘luarocks’
+      uses: leafo/gh-actions-luarocks@v4
+    - run: |
+        luarocks upload --force --api-key ${{ github.LUAROCKS_APIKEY }} -- ${{ matrix.rockspec }}
