@@ -24,6 +24,7 @@ jobs:
 
   build:
     needs: affected
+    if: ${{ needs.affected.outputs.rockspecs }}
     strategy:
       fail-fast: false
       matrix:
@@ -47,7 +48,8 @@ jobs:
         luarocks --lua-version ${{ matrix.luaVersion }} --local build -- ${{ matrix.rockspec }}
 
   upload:
-    needs: build
+    needs: [affected, build]
+    if: ${{ needs.affected.outputs.rockspecs }}
     strategy:
       fail-fast: false
       matrix:
