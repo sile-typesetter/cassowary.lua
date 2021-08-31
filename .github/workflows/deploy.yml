@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    paths:
+      - rockspecs/*.rockspec
+
+jobs:
+
+  affected:
+    runs-on: ubuntu-20.04
+    outputs:
+      rockspecs: '["${{ steps.changed-files.outputs.all_modified_files }}"]'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - id: changed-files
+      uses: tj-actions/changed-files@v1.0.2
+      with:
+        files: rockspecs/*.rockspec
+        separator: '", "'
+
+  make:
+    needs: affected
+    strategy:
+      fail-fast: false
+      matrix:
+        luaVersion: ["5.4", "5.3", "5.2", "5.1", "luajit", "luajit-openresty"]
+        luarocksVersion: ["3.7.0", "2.4.2"]
+        rockspec: ${{ fromJSON(needs.affected.outputs.rockspecs) }}
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup ‘lua’
+      uses: leafo/gh-actions-lua@v8
+      with:
+        luaVersion: ${{ matrix.luaVersion }}
+    - name: Setup ‘luarocks’
+      uses: leafo/gh-actions-luarocks@v4
+      with:
+        luarocksVersion: ${{ matrix.luarocksVersion }}
+    - name: Confirm rockspec builds
+      run: |
+        luarocks --lua-version ${{ matrix.luaVersion }} --local build -- ${{ matrix.rockspec }}
