@@ -68,4 +68,4 @@ jobs:
       run: |
         luarocks install dkjson
     - run: |
-        luarocks upload --skip-pack --force --api-key ${{ secrets.LUAROCKS_APIKEY }} -- ${{ matrix.rockspec }}
+        luarocks upload --force --api-key ${{ secrets.LUAROCKS_APIKEY }} -- ${{ matrix.rockspec }}
