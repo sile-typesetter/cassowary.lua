@@ -3,9 +3,9 @@ package = "cassowary"
 version = "2.3.1-2"
 
 source = {
+   dir = "cassowary.lua",
    url = "git://github.com/sile-typesetter/cassowary.lua",
-   tag = "v2.3.1",
-   dir = "cassowary.lua"
+   tag = "v2.3.1"
 }
 
 description = {
@@ -15,7 +15,7 @@ description = {
       and find the values of unknown variables which satisfy those
       inequalities.]],
    license = "Apache 2",
-   homepage = "https://github.com/sile-typesetter/cassowary.lua"
+   homepage = "https://github.com/sile-typesetter/cassowary.lua",
 }
 
 dependencies = {
