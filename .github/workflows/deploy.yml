@@ -49,7 +49,7 @@ jobs:
 
   upload:
     needs: [affected, build]
-    if: ${{ needs.affected.outputs.rockspecs }}
+    if: ${{ needs.affected.outputs.rockspecs && github.ref == '/refs/heads/master' && github.repository == 'sile-typesetter/cassowary.lua' }}
     strategy:
       fail-fast: false
       matrix:
