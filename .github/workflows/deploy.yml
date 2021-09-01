@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         luaVersion: ["5.4", "5.3", "5.2", "5.1", "luajit", "luajit-openresty"]
-        luarocksVersion: ["3.7.0", "2.4.2"]
+        luarocksVersion: ["3.1.3", "2.4.2"]
         rockspec: ${{ fromJSON(needs.affected.outputs.rockspecs) }}
     runs-on: ubuntu-20.04
     steps:
