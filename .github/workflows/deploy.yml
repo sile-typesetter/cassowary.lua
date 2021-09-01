@@ -64,5 +64,8 @@ jobs:
       uses: leafo/gh-actions-lua@v8
     - name: Setup ‘luarocks’
       uses: leafo/gh-actions-luarocks@v4
+    - name: Setup dependencies
+      run: |
+        luarocks install dkjson
     - run: |
         luarocks upload --skip-pack --force --api-key ${{ secrets.LUAROCKS_APIKEY }} -- ${{ matrix.rockspec }}

@@ -3,8 +3,8 @@ package = "cassowary"
 version = "2.3.1-2"
 
 source = {
-   url = "git://github.com/sile-typesetter/cassowary.lua",
    dir = "cassowary.lua",
+   url = "git://github.com/sile-typesetter/cassowary.lua",
    tag = "v2.3.1"
 }
 
