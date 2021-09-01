@@ -28,8 +28,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        luaVersion: ["5.4", "5.3", "5.2", "5.1", "luajit", "luajit-openresty"]
-        luarocksVersion: ["3.1.3", "2.4.2"]
+        # Upstream Issue: https://github.com/leafo/gh-actions-luarocks/issues/8
+        luaVersion: ["5.4", "5.3", "5.2", "5.1"] #, "luajit", "luajit-openresty"]
+        # Upstream Issue: https://github.com/leafo/gh-actions-luarocks/issues/8
+        luarocksVersion: ["3.1.3"] # , "2.4.2"]
         rockspec: ${{ fromJSON(needs.affected.outputs.rockspecs) }}
     runs-on: ubuntu-20.04
     steps:
