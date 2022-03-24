@@ -858,7 +858,7 @@ cassowary.SimplexSolver = subclass(cassowary.Tableau, {
         else
           local i = 1
           while i <= #col and not exitVar do
-            if not (col[i] == self.objective) then exitVar = col[i] end
+            if col[i] ~= self.objective then exitVar = col[i] end
           end
         end
       end
@@ -1234,7 +1234,7 @@ cassowary.SimplexSolver = subclass(cassowary.Tableau, {
     end
     for v in Set.values(self.externalRows):iter() do
       local expr = self.rows[v]
-      if not (v.value == expr.constant) then
+      if v.value ~= expr.constant then
         v.value = expr.constant
         changed[v.name] = expr.constant
       end
