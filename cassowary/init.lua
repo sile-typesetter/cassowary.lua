@@ -485,7 +485,7 @@ cassowary.Expression = class({
     local sort_hashcodes = function (a, b) return a.hashcode < b.hashcode end
     for clv, coeff in tablex.sort(self.terms, sort_hashcodes) do
       if needsplus then rv = rv .. " + " end
-      rv = rv .. coeff .. "*" .. clv.value
+      rv = rv .. coeff .. "*" .. tostring(clv.value)
       needsplus = true
     end
     return rv
@@ -508,7 +508,9 @@ cassowary.Expression = class({
   end
 })
 
-local _constraintStringify = function (self) return tostring(self.strength) .. " {" .. tostring(self.weight) .. "} (" .. tostring(self.expression) .. ")" end
+local _constraintStringify = function (self)
+  return tostring(self.strength) .. " {" .. tostring(self.weight) .. "} (" .. tostring(self.expression) .. ")"
+end
 
 cassowary.AbstractConstraint = class({
   isEditConstraint = false,
@@ -896,7 +898,7 @@ cassowary.SimplexSolver = subclass(cassowary.Tableau, {
   end,
 
   resolveArray = function (self, newEditConstants)
-    cassowary:traceFnEnterPrint("resolveArray: "..newEditConstants)
+    cassowary:traceFnEnterPrint("resolveArray: "..tostring(newEditConstants))
     local l = #newEditConstants
     for v, cei in pairs(self.editVarMap) do
       local i = cei.index
@@ -1139,7 +1141,7 @@ cassowary.SimplexSolver = subclass(cassowary.Tableau, {
       cassowary:tracePrint(zRow)
       local swCoeff = cn.strength.symbolicWeight.value * cn.weight
       if swCoeff == 0 then
-        cassowary:tracePrint("cn === "..cn.. " swCoeff = 0")
+        cassowary:tracePrint("cn === " .. tostring(cn).. " swCoeff = 0")
       end
       zRow:setVariable(eplus, swCoeff)
       self:noteAddedVariable(eplus, self.objective)
