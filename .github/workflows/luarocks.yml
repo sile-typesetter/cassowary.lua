@@ -1,21 +1,25 @@
 name: Luarocks
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
 
-  luarocks:
+  # More extensive testing gets done when a rockspec is touched, this just
+  # makes sure expected files didn't shift without updating the rockspec
+  build:
+    name: Test bulid on Linux
     runs-on: ubuntu-20.04
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Setup ‘lua’
-      uses: leafo/gh-actions-lua@v8
-    - name: Setup ‘luarocks’
-      uses: leafo/gh-actions-luarocks@v4
-    - name: Luarocks lint
-      run: |
-        luarocks --local lint -- cassowary-scm-0.rockspec
-    - name: Luarocks make
-      run: |
-        luarocks --local make -- cassowary-scm-0.rockspec
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup ‘lua’
+        uses: leafo/gh-actions-lua@v9
+      - name: Setup ‘luarocks’
+        uses: leafo/gh-actions-luarocks@v4
+      - name: Luarocks lint
+        run: |
+          luarocks lint -- cassowary-scm-0.rockspec
+      - name: Luarocks make
+        run: |
+          luarocks make -- cassowary-scm-0.rockspec
