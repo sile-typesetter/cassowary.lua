@@ -10,7 +10,6 @@ jobs:
     name: Test bulid on Linux
     runs-on: ubuntu-20.04
     steps:
-    steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup ‘lua’
@@ -19,7 +18,7 @@ jobs:
         uses: leafo/gh-actions-luarocks@v4
       - name: Luarocks lint
         run: |
-          luarocks lint -- cassowary-scm-0.rockspec
+          luarocks --local lint -- cassowary-scm-0.rockspec
       - name: Luarocks make
         run: |
-          luarocks make -- cassowary-scm-0.rockspec
+          luarocks --local make --pack-binary-rock -- cassowary-scm-0.rockspec
