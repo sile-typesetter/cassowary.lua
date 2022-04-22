@@ -6,19 +6,21 @@
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/sile-typesetter/cassowary.lua?label=Tag&logo=GitHub)](https://github.com/sile-typesetter/cassowary.lua/releases)
 [![Luarocks](https://img.shields.io/luarocks/v/simoncozens/cassowary?label=Luarocks&logo=Lua)](https://luarocks.org/modules/simoncozens/cassowary)
 
-This is a lua port of the [cassowary](http://constraints.cs.washington.edu/cassowary/)
-constraint solving toolkit. It allows you to use lua to solve algebraic equations and
-inequalities and find the values of unknown variables which satisfy those inequalities.
+This is a Lua port of the [cassowary](http://constraints.cs.washington.edu/cassowary/) constraint solving toolkit.
+It allows you to use Lua to solve algebraic equations and inequalities and find the values of unknown variables which satisfy those inequalities.
 
-This port is a fairly dumb, bug-for-bug translation of the 
-[Javascript version of cassowary](https://github.com/slightlyoff/cassowary.js). From that
-project's description:
+This port is a fairly dumb, bug-for-bug translation of the [Javascript version of cassowary](https://github.com/slightlyoff/cassowary.js).
+From that project's description:
 
-"Cassowary and other hierarchial constraint toolkits add a unique mechanism for deciding between sets of rules that might conflict in determining which of a set of possible solutions are "better". By allowing constraint authors to specify weights for the constraints, the toolkit can decide in terms of stronger constraints over weaker ones, allowing for more optimal solutions. These sorts of situations arise all the time in UI programming; e.g.: "I'd like this to be it's natural width, but only if that's smaller than 600px, and never let it get smaller than 200px". Constraint solvers offer a way out of the primordial mess of nasty conditionals and brittle invalidations."
+> Cassowary and other hierarchial constraint toolkits add a unique mechanism for deciding between sets of rules that might conflict in determining which of a set of possible solutions are "better".
+> By allowing constraint authors to specify weights for the constraints, the toolkit can decide in terms of stronger constraints over weaker ones, allowing for more optimal solutions.
+> These sorts of situations arise all the time in UI programming; e.g.: "I'd like this to be it's natural width, but only if that's smaller than 600px, and never let it get smaller than 200px".
+> Constraint solvers offer a way out of the primordial mess of nasty conditionals and brittle invalidations.
 
 ## Getting started
 
-Cassowary.lua is distributed through luarocks. Once installed:
+Cassowary.lua is distributed through [LuaRocks](https://luarocks.org/modules/simoncozens/cassowary).
+Once installed:
 
 ```lua
 cassowary = require("cassowary")
@@ -68,8 +70,8 @@ For further examples, see the test suite.
 
 ## Licence
 
-This is a derived work of the Javascript port; I've chosen to
-licensed it similarly under the Apache 2.0 license.
+This is a derived work of the Javascript port;
+I've chosen to licensed it similarly under the Apache 2.0 license.
 
 ## Author
 
