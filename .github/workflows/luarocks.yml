@@ -21,4 +21,4 @@ jobs:
           luarocks --local lint -- cassowary-scm-0.rockspec
       - name: Luarocks make
         run: |
-          luarocks --local make --pack-binary-rock -- cassowary-scm-0.rockspec
+          luarocks --local make --pack-binary-rock --deps-mode none -- cassowary-scm-0.rockspec
