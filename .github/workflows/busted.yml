@@ -1,6 +1,6 @@
 name: Busted
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
 
@@ -8,14 +8,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        luaVersion: ["5.4", "5.3", "5.2", "5.1", "luajit", "luajit-openresty"]
-        penlightVersion: ["1.9.2", "1.8.0", "1.6.0", "1.5.4"]
+        luaVersion: [ "5.4", "5.3", "5.2", "5.1", "luajit", "luajit-openresty" ]
+        penlightVersion: [ "1.12.0", "1.9.2", "1.8.0", "1.6.0", "1.5.4" ]
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Setup ‘lua’
-      uses: leafo/gh-actions-lua@v8
+      uses: leafo/gh-actions-lua@v9
       with:
         luaVersion: ${{ matrix.luaVersion }}
     - name: Setup ‘luarocks’
