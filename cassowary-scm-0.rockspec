@@ -3,7 +3,7 @@ package = "cassowary"
 version = "scm-0"
 
 source = {
-   url = "git://github.com/sile-typesetter/cassowary.lua",
+   url = "git+https://github.com/sile-typesetter/cassowary.lua",
    branch = "master"
 }
 
